@@ -1,0 +1,10 @@
+node_modules/
+.vercel
+.env
+.env.local
+*.log
+
+# NUNCA versionar chave de service account
+*service-account*.json
+gcp-key*.json
+credentials*.json

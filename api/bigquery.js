@@ -1,78 +1,98 @@
 const { BigQuery } = require('@google-cloud/bigquery');
-const { OAuth2Client } = require('google-auth-library');
+const { GoogleAuth } = require('google-auth-library');
+
 const { QUERIES } = require('./queries');
 const cache = require('../lib/cache');
 const config = require('../lib/config');
 
 const BILLING_PROJECT = config.billingProject;
-const ALLOWED_EMAILS = config.allowedEmails.map((email) => String(email).toLowerCase());
 
-function getAccessToken(req) {
-  const header = req.headers.authorization || req.headers.Authorization || '';
-  if (typeof header === 'string' && /^bearer\s+/i.test(header)) {
-    return header.replace(/^bearer\s+/i, '').trim() || null;
-  }
-  return null;
-}
+/**
+ * Cria o cliente de autenticação.
+ *
+ * LOCAL:
+ * Usa automaticamente o Application Default Credentials
+ * configurado com:
+ *
+ *   gcloud auth application-default login
+ *
+ * VERCEL:
+ * Usa a credencial JSON armazenada na variável:
+ *
+ *   GOOGLE_APPLICATION_CREDENTIALS_JSON
+ *
+ * Essa credencial é a do usuário Gabriel.
+ */
+function getGoogleAuth() {
+  const credentialsJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
 
-async function assertGoogleToken(accessToken) {
-  const resp = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  if (!resp.ok) {
-    const err = new Error('Google token is invalid or expired.');
-    err.statusCode = 401;
-    throw err;
-  }
-  const profile = await resp.json();
-  const email = String(profile.email || '').toLowerCase();
-  if (!ALLOWED_EMAILS.includes(email)) {
-    const err = new Error('This email is not allowed to query BigQuery in this panel.');
-    err.statusCode = 403;
-    throw err;
-  }
-  return email;
-}
+  if (credentialsJson) {
+    let credentials;
 
-async function requireViewer(req) {
-  const accessToken = getAccessToken(req);
-  if (accessToken) {
-    await assertGoogleToken(accessToken);
-    return accessToken;
-  }
-  // On Vercel the API is public: never run queries without a signed-in Google user.
-  if (process.env.VERCEL) {
-    const err = new Error('Faça login com Google para atualizar ou ver os dados.');
-    err.statusCode = 401;
-    throw err;
-  }
-  return null;
-}
+    try {
+      credentials = JSON.parse(credentialsJson);
+    } catch (err) {
+      throw new Error(
+        'A variável GOOGLE_APPLICATION_CREDENTIALS_JSON não contém um JSON válido.'
+      );
+    }
 
-function getClient(accessToken) {
-  if (accessToken) {
-    const authClient = new OAuth2Client();
-    authClient.setCredentials({ access_token: accessToken });
-    return new BigQuery({
+    return new GoogleAuth({
+      credentials,
       projectId: BILLING_PROJECT,
-      authClient,
+      scopes: ['https://www.googleapis.com/auth/cloud-platform'],
     });
   }
 
-  // Local fallback: Application Default Credentials
-  // (gcloud auth application-default login).
-  return new BigQuery({ projectId: BILLING_PROJECT });
+  // Desenvolvimento local:
+  // usa automaticamente:
+  // %APPDATA%\gcloud\application_default_credentials.json
+  return new GoogleAuth({
+    projectId: BILLING_PROJECT,
+    scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+  });
 }
 
+/**
+ * Cria o cliente BigQuery usando UMA ÚNICA identidade:
+ * a credencial configurada no backend.
+ */
+async function getClient() {
+  const auth = getGoogleAuth();
+  const authClient = await auth.getClient();
+
+  return new BigQuery({
+    projectId: BILLING_PROJECT,
+    authClient,
+  });
+}
+
+/**
+ * Converte os resultados do BigQuery para o formato
+ * esperado pelo frontend.
+ */
 function toRows(rawRows) {
   if (!rawRows || !rawRows.length) return [];
+
   const columns = Object.keys(rawRows[0]);
+
   return rawRows.map((row) =>
     columns.map((col) => {
-      const v = row[col];
-      if (v === null || v === undefined) return '';
-      if (typeof v === 'object' && v.value !== undefined) return String(v.value);
-      return String(v);
+      const value = row[col];
+
+      if (value === null || value === undefined) {
+        return '';
+      }
+
+      if (
+        typeof value === 'object' &&
+        value !== null &&
+        value.value !== undefined
+      ) {
+        return String(value.value);
+      }
+
+      return String(value);
     })
   );
 }
@@ -81,34 +101,54 @@ module.exports = async (req, res) => {
   res.setHeader('Content-Type', 'application/json');
 
   if (req.method !== 'POST' && req.method !== 'GET') {
-    res.status(405).json({ error: 'Method not allowed. Use GET or POST.' });
+    res.status(405).json({
+      error: 'Method not allowed. Use GET or POST.',
+    });
     return;
   }
 
   try {
-    // Snapshot is the last saved dashboard. Anyone on the allowlist can
-    // open the panel and see it; only "Atualizar tudo" hits BigQuery.
-    const snapshot = String((req.query && req.query.snapshot) || '') === '1';
+    /**
+     * Snapshot:
+     *
+     * Retorna os últimos dados salvos sem executar
+     * uma nova consulta no BigQuery.
+     */
+    const snapshot =
+      String((req.query && req.query.snapshot) || '') === '1';
+
     if (snapshot) {
       res.status(200).json(cache.snapshot());
       return;
     }
 
-    const accessToken = await requireViewer(req);
-
+    /**
+     * Identifica a métrica solicitada.
+     */
     const metric =
       (req.query && req.query.metric) ||
       (req.body && req.body.metric) ||
       null;
 
     if (!metric) {
-      res.status(400).json({ error: 'The "metric" parameter is required.' });
+      res.status(400).json({
+        error: 'The "metric" parameter is required.',
+      });
       return;
     }
 
-    // Only known metrics. The client never sends SQL — avoids injection
-    // and stops anyone from running arbitrary queries on BigQuery.
+    /**
+     * IMPORTANTE:
+     *
+     * O frontend nunca envia SQL.
+     *
+     * Ele envia somente o ID da métrica.
+     *
+     * O SQL correspondente fica no backend,
+     * dentro de api/queries.js.
+     */
     const sql = QUERIES[metric];
+
     if (!sql) {
       res.status(404).json({
         error: `Unknown metric: "${metric}".`,
@@ -117,8 +157,14 @@ module.exports = async (req, res) => {
       return;
     }
 
-    const forceRefresh = String((req.query && req.query.refresh) || '') === '1';
+    /**
+     * Verifica se já existe resultado em cache.
+     */
+    const forceRefresh =
+      String((req.query && req.query.refresh) || '') === '1';
+
     const cached = cache.get(metric);
+
     if (!forceRefresh && cached) {
       res.status(200).json({
         metric,
@@ -126,25 +172,66 @@ module.exports = async (req, res) => {
         cached: true,
         cachedAt: new Date(cached.at).toISOString(),
       });
+
       return;
     }
 
-    const [job] = await getClient(accessToken).createQueryJob({
+    /**
+     * Executa o BigQuery usando a credencial do BACKEND.
+     *
+     * Não importa qual usuário clicou no botão.
+     *
+     * Luiza
+     * Bertozzo
+     * Gabriel
+     *
+     * todos chegam aqui e a consulta usa a mesma
+     * credencial configurada no servidor.
+     */
+    const bigquery = await getClient();
+
+    const [job] = await bigquery.createQueryJob({
       query: sql,
       location: 'US',
     });
+
     const [rawRows] = await job.getQueryResults();
+
     const rows = toRows(rawRows);
 
+    /**
+     * Salva o resultado no cache.
+     */
     cache.set(metric, rows);
 
-    res.status(200).json({ metric, rows, cached: false });
+    res.status(200).json({
+      metric,
+      rows,
+      cached: false,
+    });
   } catch (err) {
-    const msg = err && err.message ? err.message : String(err);
-    const status = err && err.statusCode ? err.statusCode : /quota|exceeded/i.test(msg) ? 429 : 500;
+    console.error('Erro ao consultar BigQuery:', err);
+
+    const msg =
+      err && err.message
+        ? err.message
+        : String(err);
+
+    const status =
+      err && err.statusCode
+        ? err.statusCode
+        : /quota|exceeded/i.test(msg)
+          ? 429
+          : 500;
+
     res.status(status).json({
-      metric: (req.query && req.query.metric) || (req.body && req.body.metric) || null,
+      metric:
+        (req.query && req.query.metric) ||
+        (req.body && req.body.metric) ||
+        null,
+
       error: msg,
+
       quotaExceeded: status === 429,
     });
   }

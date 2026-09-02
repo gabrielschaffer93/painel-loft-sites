@@ -97,7 +97,7 @@ clicking "Atualizar tudo" can burn the daily quota.
 
 Mitigations already in the code:
 
-- **1-hour cache** per metric
+- Last query results stay until someone clicks **Atualizar tudo**
 - Sequential queries (one at a time), not in parallel
 
 ## Add a new metric

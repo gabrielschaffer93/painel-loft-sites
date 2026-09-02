@@ -86,13 +86,15 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const accessToken = await requireViewer(req);
-
+    // Snapshot is the last saved dashboard. Anyone on the allowlist can
+    // open the panel and see it; only "Atualizar tudo" hits BigQuery.
     const snapshot = String((req.query && req.query.snapshot) || '') === '1';
     if (snapshot) {
       res.status(200).json(cache.snapshot());
       return;
     }
+
+    const accessToken = await requireViewer(req);
 
     const metric =
       (req.query && req.query.metric) ||

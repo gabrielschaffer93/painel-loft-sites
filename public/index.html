@@ -435,17 +435,6 @@
   .portal-cover-bar-row { display: flex; flex-direction: column; gap: 6px; }
   .portal-cover-bar-head { display: flex; justify-content: space-between; gap: 8px; font-size: 11.5px; color: var(--ink-soft); }
   .portal-cover-bar-head strong { color: var(--ink); font-weight: 800; }
-  .card-refresh-btn {
-    flex-shrink: 0; width: 26px; height: 26px; border-radius: 7px; cursor: pointer;
-    background: var(--card); border: 1px solid var(--border); color: var(--ink-soft);
-    font-size: 13px; line-height: 1; display: flex; align-items: center; justify-content: center;
-    transition: background .15s ease, color .15s ease, border-color .15s ease;
-  }
-  .card-refresh-btn:hover { background: var(--laranja); border-color: var(--laranja); color: #fff; }
-  .card-refresh-btn:disabled { cursor: default; opacity: .6; }
-  .card-refresh-btn.spinning { animation: card-refresh-spin .9s linear infinite; }
-  @keyframes card-refresh-spin { to { transform: rotate(360deg); } }
-
   /* time series bars */
   .ts-chart { padding-left: 34px; }
   .ml-chart .ts-chart { padding-left: 44px; }
@@ -3336,6 +3325,13 @@ window.storage = window.storage || {
     cms_multi_sites:       { sqlId:'sql-cms-multi-sites', execId:'exec-cms_multi_sites', title:'Imobiliárias com mais de um site' }
   };
 
+  // Queries still in METRIC_META / backend, but no card calls loadCard() on them.
+  var UNUSED_METRICS = { portal_sem: true, cms_sites_total: true };
+
+  function usedMetricIds() {
+    return Object.keys(METRIC_META).filter(function(id) { return !UNUSED_METRICS[id]; });
+  }
+
   var MONTH_NAMES = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
   function niceMonth(raw) {
     var m = String(raw).match(/^(\d{4})-(\d{2})-\d{2}$/);
@@ -3608,24 +3604,15 @@ window.storage = window.storage || {
     '</div>';
   }
 
-  // KPI boxes are derived from several metrics at once, so the row gets its own
-  // refresh covering every query that feeds the numbers shown in it.
+  // KPI boxes are derived from several metrics at once.
   function kpiRowHtml(boxesHtml, ids, derived, rowClass) {
     return '<div class="kpi-row-head"><span class="kpi-row-head-label">Indicadores</span>' +
-      refreshBtnHtml(ids, 'Atualizar os indicadores desta aba') +
       '</div><div class="kpi-row' + (rowClass ? ' ' + rowClass : '') + '">' + boxesHtml + '</div>' +
       '<div class="kpi-row-sql">' + sqlDetailsHtml(ids, derived, 'Indicadores') + '</div>';
   }
 
-  function refreshBtnHtml(ids, title) {
-    var known = (ids || []).filter(function(id){ return METRIC_META[id]; });
-    if (!known.length) return '';
-    return '<button class="card-refresh-btn" data-metrics="' + known.join(',') + '" title="' + title + '">↻</button>';
-  }
-
   function cardHead(title, sub, ids, derived) {
-    var refresh = refreshBtnHtml(ids, 'Rodar as queries deste card');
-    return '<div class="panel-card-head"><div><div class="panel-title">' + title + '</div>' + (sub ? '<div class="panel-sub">' + sub + '</div>' : '') + '</div>' + refresh + '</div>' + sqlDetailsHtml(ids, derived, title);
+    return '<div class="panel-card-head"><div><div class="panel-title">' + title + '</div>' + (sub ? '<div class="panel-sub">' + sub + '</div>' : '') + '</div></div>' + sqlDetailsHtml(ids, derived, title);
   }
 
   function lineChartHtml(rows, color, footerText, opts) {
@@ -5591,15 +5578,6 @@ window.storage = window.storage || {
   }
 
   function wireCard(scope) {
-    scope.querySelectorAll('.card-refresh-btn').forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        if (liveRunning) return;
-        btn.disabled = true;
-        btn.classList.add('spinning');
-        runLiveUpdate(btn.dataset.metrics.split(','));
-      });
-    });
-
     scope.querySelectorAll('.sql-open-btn').forEach(function(btn) {
       btn.addEventListener('click', function() {
         var payload;
@@ -5804,7 +5782,7 @@ window.storage = window.storage || {
     }
 
     // The header stamp only means something when every metric was refreshed.
-    if (!errors.length && ids.length === Object.keys(METRIC_META).length) {
+    if (!errors.length && ids.length === usedMetricIds().length) {
       var now = new Date();
       var MN = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
       var stamp = now.getDate() + ' ' + MN[now.getMonth()] + ' ' + now.getFullYear() + ' · ' + now.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
@@ -5834,7 +5812,7 @@ window.storage = window.storage || {
   }
 
   document.getElementById('updateAllBtn').addEventListener('click', function() {
-    runLiveUpdate(Object.keys(METRIC_META));
+    runLiveUpdate(usedMetricIds());
   });
 
   // ---------- portão de acesso: SSO JumpCloud (OIDC + PKCE) ----------

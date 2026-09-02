@@ -77,16 +77,25 @@ function serveStatic(req, res, urlPath) {
       '.webp': 'image/webp',
     };
     res.setHeader('Content-Type', types[ext] || 'application/octet-stream');
+    if (ext === '.html') res.setHeader('Cache-Control', 'no-store');
     res.end(data);
   });
 }
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   wrapResponse(res);
   req.query = Object.fromEntries(url.searchParams.entries());
 
   try {
+    if (req.method === 'OPTIONS') {
+      res.statusCode = 204;
+      res.end();
+      return;
+    }
     if (url.pathname === '/api/bigquery') {
       req.body = await readBody(req);
       await bigqueryHandler(req, res);

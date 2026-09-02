@@ -1,3 +1,5 @@
+const config = require('../lib/config');
+
 module.exports = async (req, res) => {
   res.setHeader('Content-Type', 'application/json');
   res.setHeader('Cache-Control', 'no-store');
@@ -8,6 +10,7 @@ module.exports = async (req, res) => {
   }
 
   res.status(200).json({
-    googleClientId: process.env.GOOGLE_OAUTH_CLIENT_ID || '',
+    googleClientId: config.googleClientId || '',
+    allowedEmails: config.allowedEmails,
   });
 };

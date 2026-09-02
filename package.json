@@ -4,7 +4,7 @@
   "private": true,
   "description": "Painel de Dashboard - Loft Sites",
   "scripts": {
-    "dev": "nodemon --watch server.js --watch api --ext js server.js",
+    "dev": "nodemon --watch server.js --watch api --watch lib --ext js server.js",
     "start": "node server.js",
     "deploy": "vercel --prod"
   },

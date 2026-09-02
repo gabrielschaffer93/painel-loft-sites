@@ -1,27 +1,11 @@
 const { BigQuery } = require('@google-cloud/bigquery');
 const { OAuth2Client } = require('google-auth-library');
 const { QUERIES } = require('./queries');
+const cache = require('../lib/cache');
+const config = require('../lib/config');
 
-// Billing project: tables may live elsewhere, but query cost/quota is billed here.
-const BILLING_PROJECT = process.env.BQ_BILLING_PROJECT || 'loft-data-llm-workloads';
-
-// In-memory cache. Vercel reuses the instance across nearby invocations,
-// which avoids repeating the same heavy query.
-// Default TTL: 1 hour. Override with CACHE_TTL_MINUTES.
-const CACHE_TTL_MS = (parseInt(process.env.CACHE_TTL_MINUTES, 10) || 60) * 60 * 1000;
-const cache = new Map();
-
-function parseServiceAccount(raw) {
-  try {
-    return JSON.parse(raw);
-  } catch (e) {
-    try {
-      return JSON.parse(Buffer.from(raw, 'base64').toString('utf8'));
-    } catch (e2) {
-      throw new Error('GCP_SERVICE_ACCOUNT_KEY is not valid JSON (plain or base64).');
-    }
-  }
-}
+const BILLING_PROJECT = config.billingProject;
+const ALLOWED_EMAILS = config.allowedEmails.map((email) => String(email).toLowerCase());
 
 function getAccessToken(req) {
   const header = req.headers.authorization || req.headers.Authorization || '';
@@ -29,15 +13,6 @@ function getAccessToken(req) {
     return header.replace(/^bearer\s+/i, '').trim() || null;
   }
   return null;
-}
-
-function parseAllowedEmails() {
-  const raw = process.env.ALLOWED_EMAILS;
-  if (!raw || !String(raw).trim()) return null;
-  return String(raw)
-    .split(',')
-    .map((s) => s.trim().toLowerCase())
-    .filter(Boolean);
 }
 
 async function assertGoogleToken(accessToken) {
@@ -51,13 +26,27 @@ async function assertGoogleToken(accessToken) {
   }
   const profile = await resp.json();
   const email = String(profile.email || '').toLowerCase();
-  const allowed = parseAllowedEmails();
-  if (allowed && !allowed.includes(email)) {
+  if (!ALLOWED_EMAILS.includes(email)) {
     const err = new Error('This email is not allowed to query BigQuery in this panel.');
     err.statusCode = 403;
     throw err;
   }
   return email;
+}
+
+async function requireViewer(req) {
+  const accessToken = getAccessToken(req);
+  if (accessToken) {
+    await assertGoogleToken(accessToken);
+    return accessToken;
+  }
+  // On Vercel the API is public: never run queries without a signed-in Google user.
+  if (process.env.VERCEL) {
+    const err = new Error('Faça login com Google para atualizar ou ver os dados.');
+    err.statusCode = 401;
+    throw err;
+  }
+  return null;
 }
 
 function getClient(accessToken) {
@@ -67,14 +56,6 @@ function getClient(accessToken) {
     return new BigQuery({
       projectId: BILLING_PROJECT,
       authClient,
-    });
-  }
-
-  const saRaw = process.env.GCP_SERVICE_ACCOUNT_KEY;
-  if (saRaw) {
-    return new BigQuery({
-      projectId: BILLING_PROJECT,
-      credentials: parseServiceAccount(saRaw),
     });
   }
 
@@ -104,43 +85,46 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const metric =
-    (req.query && req.query.metric) ||
-    (req.body && req.body.metric) ||
-    null;
-
-  if (!metric) {
-    res.status(400).json({ error: 'The "metric" parameter is required.' });
-    return;
-  }
-
-  // Only known metrics. The client never sends SQL — avoids injection
-  // and stops anyone from running arbitrary queries on BigQuery.
-  const sql = QUERIES[metric];
-  if (!sql) {
-    res.status(404).json({
-      error: `Unknown metric: "${metric}".`,
-      disponiveis: Object.keys(QUERIES),
-    });
-    return;
-  }
-
-  const forceRefresh = String((req.query && req.query.refresh) || '') === '1';
-  const cached = cache.get(metric);
-  if (!forceRefresh && cached && Date.now() - cached.at < CACHE_TTL_MS) {
-    res.status(200).json({
-      metric,
-      rows: cached.rows,
-      cached: true,
-      cachedAt: new Date(cached.at).toISOString(),
-    });
-    return;
-  }
-
   try {
-    const accessToken = getAccessToken(req);
-    if (accessToken) {
-      await assertGoogleToken(accessToken);
+    const accessToken = await requireViewer(req);
+
+    const snapshot = String((req.query && req.query.snapshot) || '') === '1';
+    if (snapshot) {
+      res.status(200).json(cache.snapshot());
+      return;
+    }
+
+    const metric =
+      (req.query && req.query.metric) ||
+      (req.body && req.body.metric) ||
+      null;
+
+    if (!metric) {
+      res.status(400).json({ error: 'The "metric" parameter is required.' });
+      return;
+    }
+
+    // Only known metrics. The client never sends SQL — avoids injection
+    // and stops anyone from running arbitrary queries on BigQuery.
+    const sql = QUERIES[metric];
+    if (!sql) {
+      res.status(404).json({
+        error: `Unknown metric: "${metric}".`,
+        disponiveis: Object.keys(QUERIES),
+      });
+      return;
+    }
+
+    const forceRefresh = String((req.query && req.query.refresh) || '') === '1';
+    const cached = cache.get(metric);
+    if (!forceRefresh && cached) {
+      res.status(200).json({
+        metric,
+        rows: cached.rows,
+        cached: true,
+        cachedAt: new Date(cached.at).toISOString(),
+      });
+      return;
     }
 
     const [job] = await getClient(accessToken).createQueryJob({
@@ -150,14 +134,14 @@ module.exports = async (req, res) => {
     const [rawRows] = await job.getQueryResults();
     const rows = toRows(rawRows);
 
-    cache.set(metric, { rows, at: Date.now() });
+    cache.set(metric, rows);
 
     res.status(200).json({ metric, rows, cached: false });
   } catch (err) {
     const msg = err && err.message ? err.message : String(err);
     const status = err && err.statusCode ? err.statusCode : /quota|exceeded/i.test(msg) ? 429 : 500;
     res.status(status).json({
-      metric,
+      metric: (req.query && req.query.metric) || (req.body && req.body.metric) || null,
       error: msg,
       quotaExceeded: status === 429,
     });

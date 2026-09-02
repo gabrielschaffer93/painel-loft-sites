@@ -2,23 +2,6 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-function loadEnvFile(filePath) {
-  if (!fs.existsSync(filePath)) return;
-  const text = fs.readFileSync(filePath, 'utf8');
-  for (const line of text.split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith('#')) continue;
-    const eq = trimmed.indexOf('=');
-    if (eq === -1) continue;
-    const key = trimmed.slice(0, eq).trim();
-    const value = trimmed.slice(eq + 1).trim();
-    if (key && process.env[key] === undefined) process.env[key] = value;
-  }
-}
-
-loadEnvFile(path.join(__dirname, '.env.local'));
-loadEnvFile(path.join(__dirname, '.env'));
-
 const bigqueryHandler = require('./api/bigquery');
 const authConfigHandler = require('./api/auth-config');
 

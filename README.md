@@ -7,101 +7,88 @@ OKR dashboard for the Sites product (GTM Capital). Metrics come from BigQuery.
 ```
 painel-sites-loft/
 ├── api/
-│   ├── auth-config.js  # exposes the Google OAuth client id to the frontend
-│   ├── bigquery.js     # serverless function: runs the queries in BigQuery
-│   └── queries.js      # the 25 SQL queries (server-side only)
+│   ├── auth-config.js  # public client id + allowlist for the login screen
+│   ├── bigquery.js     # runs the queries in BigQuery
+│   └── queries.js      # the SQL queries (server-side only)
+├── lib/
+│   ├── config.js       # the only file you edit to set up the app
+│   └── cache.js
 ├── public/
-│   └── index.html      # the full panel (single HTML/CSS/JS file)
+│   └── index.html
 ├── package.json
-├── vercel.json
-└── README.md
+└── server.js
 ```
 
 The browser never sends SQL. It only calls `/api/bigquery?metric=total_leads`
 with the user's Google access token. The server picks the query.
 
-## Auth: Google OAuth consent screen (no service account)
+No environment variables are required. Do not create a `.env` for this project.
 
-Queries run as the signed-in Google user. You still need an **OAuth 2.0 Client ID**
-in an existing GCP project — not a service account and not a JSON key.
+## Setup (once, then the whole team can run)
 
-### 1. OAuth consent screen
+### 1. Paste the Google OAuth client id
 
-In the GCP project you already use (for example `loft-data-llm-workloads`):
+Open `lib/config.js` and set `googleClientId`. That value is public (Web client
+id, not a secret). After it is in the repo, every teammate can sign in.
 
-1. APIs & Services → enable **BigQuery API**
-2. APIs & Services → **OAuth consent screen**
-3. User type: **External** (the allowlist includes `@loft.com.br` and `@vistasoft.com.br`)
-4. App name: `Painel Sites Loft`
-5. Scopes:
-   - `openid`
-   - `email`
-   - `profile`
-   - `https://www.googleapis.com/auth/bigquery`
-6. While the app is in **Testing**, add the allowlist emails as test users
+If the client does not exist yet, in any GCP project the team already uses:
 
-Your Google user must already have BigQuery access (`bigquery.jobUser` on the
-billing project and `bigquery.dataViewer` on `loft-dl-marketplace` / `loft-dl-fintech`).
-
-### 2. OAuth client ID
-
-1. APIs & Services → Credentials → Create credentials → **OAuth client ID**
-2. Application type: **Web application**
-3. Authorized JavaScript origins:
+1. Enable the **BigQuery API**
+2. **OAuth consent screen** (External, because the list has `@loft.com.br` and `@vistasoft.com.br`)
+3. Scopes: `openid`, `email`, `profile`, `https://www.googleapis.com/auth/bigquery`
+4. While the app is in **Testing**, add the allowlist emails as test users
+5. Credentials → **OAuth client ID** → **Web application**
+6. Authorized JavaScript origins (and redirect URIs):
    - `http://localhost:3000`
-   - your Vercel URL, when you deploy
-4. Authorized redirect URIs: the same origins
-5. Copy the client id (`....apps.googleusercontent.com`)
+   - the Vercel URL, when you deploy
 
-### 3. Environment variables
+### 2. Who can open the panel
 
-Create `.env.local` next to `package.json`:
+The allowlist lives in `lib/config.js` (`allowedEmails`). Add or remove emails there.
 
-```
-GOOGLE_OAUTH_CLIENT_ID=123456789-xxxx.apps.googleusercontent.com
-BQ_BILLING_PROJECT=loft-data-llm-workloads
-CACHE_TTL_MINUTES=60
-ALLOWED_EMAILS=gabriel.oliveira@vistasoft.com.br,elias.bernardi@loft.com.br,bruno.bertozzo@loft.com.br,luiza.pais@loft.com.br
-```
+Each Google user also needs BigQuery IAM:
 
-On Vercel, set the same variables in Project Settings → Environment Variables.
+- `bigquery.jobUser` on `loft-dl-marketplace` (jobs are billed in the same project as the tables)
+- `bigquery.dataViewer` on `loft-dl-marketplace` and `loft-dl-fintech`
 
-Optional: `GCP_SERVICE_ACCOUNT_KEY` is still accepted as a fallback. It is not required.
-
-### 4. Run locally
+### 3. Run locally
 
 ```bash
 npm install
-npx vercel dev
+npm start
 ```
 
-Open `http://localhost:3000`, click **Entrar com Google**, and accept BigQuery
+Open `http://localhost:3000` and click **Entrar com Google**. Accept BigQuery
 access on the consent screen.
 
-Local alternative without the in-app OAuth client: run
+Local alternative without the in-app Google client: run
 `gcloud auth application-default login` once. The API then uses Application
 Default Credentials if the browser does not send a token.
 
-### 5. Deploy
+### 4. Deploy
 
 ```bash
 npx vercel --prod
 ```
 
-Or connect the repository in the Vercel dashboard.
+Or connect the GitHub repo in the Vercel dashboard. There is nothing to set in
+**Environment Variables**.
+
+Add the Vercel URL to the OAuth client's authorized origins.
+
+If the consent screen is still in **Testing**, add every teammate as a test user.
+
+Email-only login still opens the UI, but on Vercel the API requires a Google
+token. Use **Entrar com Google** in production.
+
+After one successful **Atualizar tudo**, other signed-in users can load the
+shared snapshot from the API instead of an empty `localStorage`.
 
 ## Access control
 
-The panel keeps an email allowlist in `public/index.html` (`ALLOWED_EMAILS`)
-and the same list in `ALLOWED_EMAILS` on the server.
-
-The frontend list is only a casual gate. The real controls are:
-
-- Google OAuth token required to run queries
+- Allowlist in `lib/config.js` (login screen and API)
+- Google OAuth token required to run queries on Vercel
 - IAM permissions of that Google user on BigQuery
-- Optional server-side `ALLOWED_EMAILS`
-
-JumpCloud SSO code is still in `index.html` (`JC_CLIENT_ID`) if you need it later.
 
 ## BigQuery quota
 
@@ -110,11 +97,8 @@ clicking "Atualizar tudo" can burn the daily quota.
 
 Mitigations already in the code:
 
-- **1-hour cache** per metric (`CACHE_TTL_MINUTES`)
+- **1-hour cache** per metric
 - Sequential queries (one at a time), not in parallel
-
-If that is still not enough, consider a daily cron that materializes the data
-instead of leaving the refresh button open for everyone.
 
 ## Add a new metric
 

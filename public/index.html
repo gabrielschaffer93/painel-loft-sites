@@ -1265,13 +1265,13 @@
       <div class="auth-card2">
         <div class="auth-eyebrow">Acesso interno Loft</div>
         <div class="auth-h1">Bem-vindo de volta</div>
-        <div class="auth-lede">Entre com sua conta Google. Na tela de consentimento, autorize o acesso ao BigQuery.</div>
+        <div class="auth-lede">Digite um e-mail liberado para acessar o painel. O login com Google ainda está em teste.</div>
 
-        <button type="button" class="auth-sso-btn" id="authSsoBtn">
+        <button type="button" class="auth-sso-btn" id="authSsoBtn" disabled aria-disabled="true">
           <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path fill="#fff" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/><path fill="#fff" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/><path fill="#fff" d="M3.964 10.712c-.18-.54-.282-1.117-.282-1.712 0-.595.102-1.173.282-1.712V4.956H.957C.347 6.175 0 7.55 0 9s.348 2.825.957 4.044l3.007-2.332z"/><path fill="#fff" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.956L3.964 7.288C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
-          Entrar com Google <span style="font-size: 12px; font-weight: 400; letter-spacing: 0.8px;">(em breve)</span> 
+          Entrar com Google <span class="auth-soon-tag">(em breve)</span> 
         </button>
-        <div class="auth-sso-note">O Google abre a tela de consentimento. As consultas rodam com a permissão da sua conta — sem service account.</div>
+        <div class="auth-sso-note">O login com Google ainda está em teste. Por enquanto, use o e-mail liberado abaixo.</div>
         <div class="auth-sso-toast" id="authSsoToast"></div>
 
         <div class="auth-email-divider"><span class="auth-divider-line2"></span><span class="auth-divider-text2">ou</span><span class="auth-divider-line2"></span></div>
@@ -5662,7 +5662,7 @@ window.storage = window.storage || {
       var res = await window.storage.get('last_updated_v2', false);
       if (res && res.value) { el.textContent = 'Atualizado em ' + res.value; return; }
     } catch (e) {}
-    el.textContent = 'Nunca atualizado — clique em ↻ para rodar as queries';
+    el.textContent = 'Nunca atualizado — clique em Atualizar tudo';
   }
 
   // ---------- atualizacao via BigQuery MCP ----------
@@ -5927,7 +5927,28 @@ window.storage = window.storage || {
   var googleTokenClient = null;
   var googleAccessToken = null;
   var googleTokenExpiresAt = 0;
-  var googleClientIdCache = null;
+  var APP_CONFIG = {
+    googleClientId: '',
+    allowedEmails: [
+      'gabriel.oliveira@vistasoft.com.br',
+      'elias.bernardi@loft.com.br',
+      'bruno.bertozzo@loft.com.br',
+      'luiza.pais@loft.com.br'
+    ]
+  };
+
+  async function loadAppConfig() {
+    try {
+      var resp = await fetch(apiUrl('/api/auth-config'));
+      var data = await resp.json();
+      if (data && data.googleClientId) APP_CONFIG.googleClientId = data.googleClientId;
+      if (data && data.allowedEmails && data.allowedEmails.length) {
+        APP_CONFIG.allowedEmails = data.allowedEmails.map(function(email) {
+          return String(email).toLowerCase();
+        });
+      }
+    } catch (e) {}
+  }
 
   function waitForGis(timeoutMs) {
     return new Promise(function(resolve, reject) {
@@ -5948,20 +5969,13 @@ window.storage = window.storage || {
     });
   }
 
-  async function fetchGoogleClientId() {
-    if (googleClientIdCache) return googleClientIdCache;
-    var resp = await fetch(apiUrl('/api/auth-config'));
-    var data = await resp.json();
-    googleClientIdCache = (data && data.googleClientId) ? data.googleClientId : '';
-    return googleClientIdCache;
-  }
-
   async function getGoogleTokenClient() {
     if (googleTokenClient) return googleTokenClient;
     await waitForGis();
-    var clientId = await fetchGoogleClientId();
+    if (!APP_CONFIG.googleClientId) await loadAppConfig();
+    var clientId = APP_CONFIG.googleClientId;
     if (!clientId) {
-      throw new Error('GOOGLE_OAUTH_CLIENT_ID não configurado no .env.local.');
+      throw new Error('Client ID do Google não configurado em lib/config.js.');
     }
     googleTokenClient = google.accounts.oauth2.initTokenClient({
       client_id: clientId,
@@ -6023,7 +6037,7 @@ window.storage = window.storage || {
       if (!userResp.ok) throw new Error('Não foi possível validar a conta Google.');
       var profile = await userResp.json();
       var email = (profile.email || '').toLowerCase();
-      if (ALLOWED_EMAILS.indexOf(email) === -1) {
+      if (APP_CONFIG.allowedEmails.indexOf(email) === -1) {
         throw new Error('Este e-mail não tem acesso liberado a este painel.');
       }
       try { await window.storage.set(AUTH_STORAGE_KEY, 'ok', false); } catch (e) {}
@@ -6036,11 +6050,45 @@ window.storage = window.storage || {
     }
   }
 
-  function startApp() {
+  function formatUpdatedStamp(date) {
+    var now = date instanceof Date ? date : new Date(date);
+    if (isNaN(now.getTime())) return '';
+    var MN = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+    return now.getDate() + ' ' + MN[now.getMonth()] + ' ' + now.getFullYear() + ' · ' +
+      now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function existingGoogleAccessToken() {
+    if (googleAccessToken && Date.now() < googleTokenExpiresAt) return googleAccessToken;
+    try { return sessionStorage.getItem('google_access_token') || null; } catch (e) { return null; }
+  }
+
+  async function hydrateFromApi() {
+    try {
+      var token = existingGoogleAccessToken();
+      var headers = {};
+      if (token) headers.Authorization = 'Bearer ' + token;
+      var resp = await fetch(apiUrl('/api/bigquery?snapshot=1'), { headers: headers });
+      if (!resp.ok) return;
+      var data = await resp.json();
+      var metrics = (data && data.metrics) || {};
+      var ids = Object.keys(metrics);
+      for (var i = 0; i < ids.length; i++) {
+        var rows = metrics[ids[i]] && metrics[ids[i]].rows;
+        if (Array.isArray(rows) && rows.length) await saveCard(ids[i], rows);
+      }
+      if (data.updatedAt) {
+        try { await window.storage.set('last_updated_v2', formatUpdatedStamp(data.updatedAt), false); } catch (e) {}
+      }
+    } catch (e) {}
+  }
+
+  async function startApp() {
     document.getElementById('authGate').classList.remove('active');
     document.getElementById('appShell').style.display = '';
     initTabs();
-    renderAll();
+    await hydrateFromApi();
+    await renderAll();
   }
 
   async function checkAuth() {
@@ -6056,16 +6104,8 @@ window.storage = window.storage || {
   }
 
   document.getElementById('authSsoBtn').addEventListener('click', function() {
-    startGoogleLogin();
+    // Google login is not enabled yet.
   });
-
-  // ---------- acesso por e-mail Loft (allowlist, sem senha) ----------
-  var ALLOWED_EMAILS = [
-    'gabriel.oliveira@vistasoft.com.br',
-    'elias.bernardi@loft.com.br',
-    'bruno.bertozzo@loft.com.br',
-    'luiza.pais@loft.com.br'
-  ];
 
   async function tryEmailAccess() {
     var email = document.getElementById('authEmailOnly').value.trim().toLowerCase();
@@ -6080,7 +6120,7 @@ window.storage = window.storage || {
       return;
     }
 
-    if (ALLOWED_EMAILS.indexOf(email) === -1) {
+    if (APP_CONFIG.allowedEmails.indexOf(email) === -1) {
       errEl.textContent = 'Este e-mail não tem acesso liberado a este painel.';
       errEl.style.display = 'block';
       return;
@@ -6109,7 +6149,7 @@ window.storage = window.storage || {
   });
 
   wireQueryModal();
-  checkAuth();
+  loadAppConfig().then(checkAuth);
 })();
 </script>
 </body>

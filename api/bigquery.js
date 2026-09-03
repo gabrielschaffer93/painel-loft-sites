@@ -1,71 +1,6 @@
-const { BigQuery } = require('@google-cloud/bigquery');
-const { GoogleAuth } = require('google-auth-library');
-
 const { QUERIES } = require('./queries');
 const cache = require('../lib/cache');
-const config = require('../lib/config');
-
-const BILLING_PROJECT = config.billingProject;
-
-/**
- * Cria o cliente de autenticação.
- *
- * LOCAL:
- * Usa automaticamente o Application Default Credentials
- * configurado com:
- *
- *   gcloud auth application-default login
- *
- * VERCEL:
- * Usa a credencial JSON armazenada na variável:
- *
- *   GOOGLE_APPLICATION_CREDENTIALS_JSON
- *
- * Essa credencial é a do usuário Gabriel.
- */
-function getGoogleAuth() {
-  const credentialsJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
-
-  if (credentialsJson) {
-    let credentials;
-
-    try {
-      credentials = JSON.parse(credentialsJson);
-    } catch (err) {
-      throw new Error(
-        'A variável GOOGLE_APPLICATION_CREDENTIALS_JSON não contém um JSON válido.'
-      );
-    }
-
-    return new GoogleAuth({
-      credentials,
-      projectId: BILLING_PROJECT,
-      scopes: ['https://www.googleapis.com/auth/cloud-platform'],
-    });
-  }
-
-  // Desenvolvimento local:
-  // usa automaticamente:
-  // %APPDATA%\gcloud\application_default_credentials.json
-  return new GoogleAuth({
-    projectId: BILLING_PROJECT,
-    scopes: ['https://www.googleapis.com/auth/cloud-platform'],
-  });
-}
-
-/**
- * Cria o cliente BigQuery usando UMA ÚNICA identidade:
- * a credencial configurada no backend.
- */
-async function getClient() {
-  const auth = getGoogleAuth();
-  const authClient = await auth.getClient();
-
-  return new BigQuery({
-    projectId: BILLING_PROJECT,
-    authClient,
-  });
-}
+const { getBigQuery } = require('../lib/google');
 
 /**
  * Converte os resultados do BigQuery para o formato
@@ -118,7 +53,7 @@ module.exports = async (req, res) => {
       String((req.query && req.query.snapshot) || '') === '1';
 
     if (snapshot) {
-      res.status(200).json(cache.snapshot());
+      res.status(200).json(await cache.snapshot());
       return;
     }
 
@@ -163,7 +98,7 @@ module.exports = async (req, res) => {
     const forceRefresh =
       String((req.query && req.query.refresh) || '') === '1';
 
-    const cached = cache.get(metric);
+    const cached = await cache.get(metric);
 
     if (!forceRefresh && cached) {
       res.status(200).json({
@@ -188,7 +123,7 @@ module.exports = async (req, res) => {
      * todos chegam aqui e a consulta usa a mesma
      * credencial configurada no servidor.
      */
-    const bigquery = await getClient();
+    const bigquery = await getBigQuery();
 
     const [job] = await bigquery.createQueryJob({
       query: sql,
@@ -202,7 +137,7 @@ module.exports = async (req, res) => {
     /**
      * Salva o resultado no cache.
      */
-    cache.set(metric, rows);
+    await cache.set(metric, rows);
 
     res.status(200).json({
       metric,

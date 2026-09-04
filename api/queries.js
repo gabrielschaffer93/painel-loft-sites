@@ -254,23 +254,26 @@ ORDER BY
     INNER JOIN \`loft-dl-marketplace.silver_product_vista.clientes_features\` AS features
         ON clientes.id_cliente = features.id_cliente
     WHERE clientes.status = 'ATIVO'
-        AND features.id_feature = 259
-        AND features.status = 'ATIVO'
+      AND features.id_feature = 259
+      AND features.status = 'ATIVO'
 ),
 leads_cadastrados AS (
     SELECT
-        c.nome_cliente AS nome_lead
+        c.id_database,
+        c.nome_cliente AS nome_lead,
+        c.data_cadastro,
+        c.veiculo_captacao
     FROM \`loft-dl-marketplace.staging.stg_union_all_crm_daily__clientes\` AS c
     INNER JOIN \`loft-dl-marketplace.staging.stg_union_all_crm_daily__agencias\` AS a
         ON c.id_database = a.id_database
-    INNER JOIN imobiliarias_feature_ativa AS F
-        ON a.id_imobiliaria = F.id_cliente
-    WHERE UPPER(c.veiculo_captacao) LIKE '%SITE IMOBILI%'
-        AND c.data_cadastro BETWEEN '2026-01-01' AND CURRENT_DATE()
-    QUALIFY ROW_NUMBER() OVER(PARTITION BY c.id_database, c.nome_cliente ORDER BY c.data_cadastro DESC) = 1
+    INNER JOIN imobiliarias_feature_ativa AS f
+        ON a.id_imobiliaria = f.id_cliente
+        AND a.id_database = f.id_database
+    WHERE c.veiculo_captacao LIKE 'SITE IMOBIL%'
+      AND c.data_cadastro BETWEEN '2026-01-01' AND CURRENT_DATE()
 )
 SELECT
-    COUNT(nome_lead) AS total_geral_leads_crm
+    COUNT(*) AS total_leads_crm
 FROM leads_cadastrados`,
   leads_crm_mes: `WITH imobiliarias_feature_ativa AS (
     SELECT DISTINCT

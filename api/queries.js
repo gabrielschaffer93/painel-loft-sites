@@ -312,27 +312,20 @@ WHERE tipo_evento = 'pageview' AND origem_trafego != '' AND data_ref BETWEEN '20
 GROUP BY origem_trafego
 ORDER BY total_eventos DESC
 LIMIT 20`,
-  imoveis_publicados: `WITH imobiliarias_sites AS (
-    SELECT DISTINCT
-        clientes.id_cliente
-        , clientes.nome_cliente
-        , IFNULL(clientes.imoveis_ativos_venda_ver_web, 0) AS qtd_venda_ver_web
-        , IFNULL(clientes.imoveis_ativos_locacao_ver_web, 0) AS qtd_locacao_ver_web
-    FROM \`loft-dl-marketplace.silver_product_vista.clientes\` AS clientes
-    INNER JOIN \`loft-dl-marketplace.silver_product_vista.clientes_features\` AS features
-        ON clientes.id_cliente = features.id_cliente
-    WHERE clientes.status = 'ATIVO'
-        AND features.id_feature = 259
-        AND features.status = 'ATIVO'
-)
-SELECT
-    SUM(qtd_venda_ver_web) AS total_imoveis_venda_no_site
-    , SUM(qtd_locacao_ver_web) AS total_imoveis_locacao_no_site
-    , SUM(qtd_venda_ver_web + qtd_locacao_ver_web) AS total_imoveis_no_site
-FROM imobiliarias_sites`,
-  publicados_venda_2026: `SELECT SUM(imoveis_ativos_venda_ver_web) AS TOTAL_LISTINGS_VENDA
+  imoveis_publicados: `SELECT
+  SUM(imoveis_ativos_venda_ver_web) AS TOTAL_LISTINGS_VENDA,
+  SUM(imoveis_ativos_locacao_ver_web) AS TOTAL_LISTINGS_LOCACAO,
+  (SUM(imoveis_ativos_venda_ver_web) + SUM(imoveis_ativos_locacao_ver_web)) AS TOTAL_GERAL
 FROM \`loft-dl-marketplace.gold_loft_sites.sites_imobiliarias\`
-WHERE status_site IN ('ATIVO') AND data_criacao >= '2026-01-01'`,
+WHERE
+  status_site IN ('ATIVO')`,
+  publicados_venda_2026: `SELECT
+  SUM(imoveis_ativos_venda_ver_web) AS TOTAL_LISTINGS_VENDA,
+  SUM(imoveis_ativos_locacao_ver_web) AS TOTAL_LISTINGS_LOCACAO,
+  (SUM(imoveis_ativos_venda_ver_web) + SUM(imoveis_ativos_locacao_ver_web)) AS TOTAL_GERAL
+FROM \`loft-dl-marketplace.gold_loft_sites.sites_imobiliarias\`
+WHERE
+  status_site IN ('ATIVO')`,
   vendidos_2026: `WITH imoveis_stage_dedup AS (
     SELECT id_database, id_imovel, data_atualizacao
     FROM \`loft-dl-marketplace.staging.stg_union_all_crm_daily__imoveis\`

@@ -1717,33 +1717,23 @@ LIMIT 20
 </script>
 
 <script type="text/plain" id="sql-imoveis-publicados">
-WITH imobiliarias_sites AS (
-    SELECT DISTINCT
-        clientes.id_cliente
-        , clientes.nome_cliente
-        , IFNULL(clientes.imoveis_ativos_venda_ver_web, 0) AS qtd_venda_ver_web
-        , IFNULL(clientes.imoveis_ativos_locacao_ver_web, 0) AS qtd_locacao_ver_web
-    FROM `loft-dl-marketplace.silver_product_vista.clientes` AS clientes
-    INNER JOIN `loft-dl-marketplace.silver_product_vista.clientes_features` AS features
-        ON clientes.id_cliente = features.id_cliente
-    WHERE clientes.status = 'ATIVO'
-        AND features.id_feature = 259
-        AND features.status = 'ATIVO'
-)
 SELECT
-    SUM(qtd_venda_ver_web) AS total_imoveis_venda_no_site
-    , SUM(qtd_locacao_ver_web) AS total_imoveis_locacao_no_site
-    , SUM(qtd_venda_ver_web + qtd_locacao_ver_web) AS total_imoveis_no_site
-FROM imobiliarias_sites
+  SUM(imoveis_ativos_venda_ver_web) AS TOTAL_LISTINGS_VENDA,
+  SUM(imoveis_ativos_locacao_ver_web) AS TOTAL_LISTINGS_LOCACAO,
+  (SUM(imoveis_ativos_venda_ver_web) + SUM(imoveis_ativos_locacao_ver_web)) AS TOTAL_GERAL
+FROM `loft-dl-marketplace.gold_loft_sites.sites_imobiliarias`
+WHERE
+  status_site IN ('ATIVO')
 </script>
 
 <script type="text/plain" id="sql-publicados-venda">
 SELECT
-  SUM(imoveis_ativos_venda_ver_web) AS TOTAL_LISTINGS_VENDA
+  SUM(imoveis_ativos_venda_ver_web) AS TOTAL_LISTINGS_VENDA,
+  SUM(imoveis_ativos_locacao_ver_web) AS TOTAL_LISTINGS_LOCACAO,
+  (SUM(imoveis_ativos_venda_ver_web) + SUM(imoveis_ativos_locacao_ver_web)) AS TOTAL_GERAL
 FROM `loft-dl-marketplace.gold_loft_sites.sites_imobiliarias`
 WHERE
   status_site IN ('ATIVO')
-  AND data_criacao >= '2026-01-01'
 </script>
 
 <script type="text/plain" id="sql-vendidos-2026">
@@ -2716,30 +2706,23 @@ LIMIT 20
 </script>
 
 <script type="text/plain" id="exec-imoveis_publicados">
-WITH imobiliarias_sites AS (
-    SELECT DISTINCT
-        clientes.id_cliente
-        , clientes.nome_cliente
-        , IFNULL(clientes.imoveis_ativos_venda_ver_web, 0) AS qtd_venda_ver_web
-        , IFNULL(clientes.imoveis_ativos_locacao_ver_web, 0) AS qtd_locacao_ver_web
-    FROM `loft-dl-marketplace.silver_product_vista.clientes` AS clientes
-    INNER JOIN `loft-dl-marketplace.silver_product_vista.clientes_features` AS features
-        ON clientes.id_cliente = features.id_cliente
-    WHERE clientes.status = 'ATIVO'
-        AND features.id_feature = 259
-        AND features.status = 'ATIVO'
-)
 SELECT
-    SUM(qtd_venda_ver_web) AS total_imoveis_venda_no_site
-    , SUM(qtd_locacao_ver_web) AS total_imoveis_locacao_no_site
-    , SUM(qtd_venda_ver_web + qtd_locacao_ver_web) AS total_imoveis_no_site
-FROM imobiliarias_sites
+  SUM(imoveis_ativos_venda_ver_web) AS TOTAL_LISTINGS_VENDA,
+  SUM(imoveis_ativos_locacao_ver_web) AS TOTAL_LISTINGS_LOCACAO,
+  (SUM(imoveis_ativos_venda_ver_web) + SUM(imoveis_ativos_locacao_ver_web)) AS TOTAL_GERAL
+FROM `loft-dl-marketplace.gold_loft_sites.sites_imobiliarias`
+WHERE
+  status_site IN ('ATIVO')
 </script>
 
 <script type="text/plain" id="exec-publicados_venda_2026">
-SELECT SUM(imoveis_ativos_venda_ver_web) AS TOTAL_LISTINGS_VENDA
+SELECT
+  SUM(imoveis_ativos_venda_ver_web) AS TOTAL_LISTINGS_VENDA,
+  SUM(imoveis_ativos_locacao_ver_web) AS TOTAL_LISTINGS_LOCACAO,
+  (SUM(imoveis_ativos_venda_ver_web) + SUM(imoveis_ativos_locacao_ver_web)) AS TOTAL_GERAL
 FROM `loft-dl-marketplace.gold_loft_sites.sites_imobiliarias`
-WHERE status_site IN ('ATIVO') AND data_criacao >= '2026-01-01'
+WHERE
+  status_site IN ('ATIVO')
 </script>
 
 <script type="text/plain" id="exec-vendidos_2026">
@@ -3313,8 +3296,8 @@ window.storage = window.storage || {
     leads_tipo:            { sqlId:'sql-leads-tipo', execId:'exec-leads_tipo', title:'Leads por Tipo' },
     leads_imob:            { sqlId:'sql-leads-imob', execId:'exec-leads_imob', title:'Leads cadastrados no CRM por imobiliária' },
     imob_sem_leads:        { sqlId:'sql-imob-sem-leads', execId:'exec-imob_sem_leads', title:'Imobiliárias sem Leads por Mês' },
-    imoveis_publicados:    { sqlId:'sql-imoveis-publicados', execId:'exec-imoveis_publicados', title:'Imóveis Publicados nos Sites' },
-    publicados_venda_2026: { sqlId:'sql-publicados-venda', execId:'exec-publicados_venda_2026', title:'Publicados para Venda no período' },
+    imoveis_publicados:    { sqlId:'sql-imoveis-publicados', execId:'exec-imoveis_publicados', title:'Imóveis publicados nos sites' },
+    publicados_venda_2026: { sqlId:'sql-publicados-venda', execId:'exec-publicados_venda_2026', title:'Total publicado para venda' },
     vendidos_2026:         { sqlId:'sql-vendidos-2026', execId:'exec-vendidos_2026', title:'Imóveis Vendidos no período' },
     vendidos_2026_mam:     { sqlId:'sql-vendidos-2026-mam', execId:'exec-vendidos_2026_mam', title:'Imóveis Vendidos mês a mês' },
     vendidos_imob:         { sqlId:'sql-vendidos-imob', execId:'exec-vendidos_imob', title:'Imóveis Vendidos por Imobiliária' },
@@ -3332,7 +3315,7 @@ window.storage = window.storage || {
   };
 
   // Queries still in METRIC_META / backend, but no card calls loadCard() on them.
-  var UNUSED_METRICS = { portal_sem: true, cms_sites_total: true };
+  var UNUSED_METRICS = { portal_sem: true, cms_sites_total: true, publicados_venda_2026: true };
 
   function usedMetricIds() {
     return Object.keys(METRIC_META).filter(function(id) { return !UNUSED_METRICS[id]; });
@@ -3564,8 +3547,8 @@ window.storage = window.storage || {
 
   // Storage version bumped to drop any placeholder rows cached by older builds.
   function storageKey(id) {
-    if (id === 'leads_crm') return 'metric_' + id + '_v5';
-    if (id === 'imob_sem_leads' || id === 'views_composicao' || id === 'cross_sell' || id === 'subtotais' || id === 'imoveis_publicados' || id === 'portal_com' || id === 'portal_com_count' || id === 'portal_cobertura' || id === 'portal_sem') return 'metric_' + id + '_v4';
+    if (id === 'leads_crm' || id === 'imoveis_publicados' || id === 'publicados_venda_2026') return 'metric_' + id + '_v5';
+    if (id === 'imob_sem_leads' || id === 'views_composicao' || id === 'cross_sell' || id === 'subtotais' || id === 'portal_com' || id === 'portal_com_count' || id === 'portal_cobertura' || id === 'portal_sem') return 'metric_' + id + '_v4';
     if (id === 'cms_multi_sites' || id === 'leads_imob') return 'metric_' + id + '_v4';
     return 'metric_' + id + '_v2';
   }
@@ -4318,7 +4301,9 @@ window.storage = window.storage || {
     if (!rows || !rows.length) return queryErrorNote();
     opts = opts || {};
     var sorted = sortMonthRows(rows);
-    var yearPub = (opts.yearPub != null && isFinite(opts.yearPub)) ? opts.yearPub : null;
+    var yearPub = (opts.yearPub != null && isFinite(opts.yearPub))
+      ? opts.yearPub
+      : sorted.reduce(function(sum, r) { return sum + (parseFloat(r[1]) || 0); }, 0);
     var yearVnd = (opts.yearVnd != null && isFinite(opts.yearVnd))
       ? opts.yearVnd
       : sorted.reduce(function(sum, r) { return sum + (parseFloat(r[2]) || 0); }, 0);
@@ -5124,8 +5109,10 @@ window.storage = window.storage || {
     var portalComCountCard = await loadCard('portal_com_count');
     var portalCobertura = await loadCard('portal_cobertura');
     var cmsMultiSites = await loadCard('cms_multi_sites');
+    var listings = await loadCard('imoveis_publicados');
 
     var sub = hasRows(subtotais) ? subtotais[0] : null;
+    var listRow = hasRows(listings) ? listings[0] : null;
     var totalImob = sub ? parseFloat(sub[0]) : null;
     var totalAcessos = hasRows(acessos) ? parseFloat(acessos[0][0]) : null;
     var portalComCount = hasRows(portalComCountCard) ? parseFloat(portalComCountCard[0][0]) : null;
@@ -5157,11 +5144,12 @@ window.storage = window.storage || {
       kpiBox('Total de Imobiliárias', sub ? fmtNum(sub[0]) : null, null, 'Contas ativas no CMS') +
       kpiBox('Total de sites', totalSites === null ? null : fmtNum(totalSites), null, multiSiteSub) +
       kpiBox('Total de Acessos', totalAcessos === null ? null : fmtCompact(totalAcessos), null, sincePeriodLabel(novas) || 'desde o início do período') +
-      kpiBox('Total de Portfólio publicado', sub ? fmtCompact(sub[3]) : null, null, sub ? (fmtCompact(sub[1]) + ' venda + ' + fmtCompact(sub[2]) + ' locação') : '') +
+      kpiBox('Total de Portfólio publicado', listRow ? fmtCompact(listRow[2]) : null, null, listRow ? (fmtCompact(listRow[0]) + ' venda + ' + fmtCompact(listRow[1]) + ' locação') : '') +
       kpiBox('Imobiliárias no Portal', portalComCount === null ? null : fmtNum(portalComCount), null, 'Parceiros de Site que estão no Portal Loft'),
-      ['subtotais', 'template', 'total_acessos', 'portal_com_count', 'cms_multi_sites'],
+      ['subtotais', 'imoveis_publicados', 'template', 'total_acessos', 'portal_com_count', 'cms_multi_sites'],
       [
         { label: 'Total de Imobiliárias', formula: 'mesma base Vista / feature 259 usada em no portal + fora' },
+        { label: 'Total de Portfólio publicado', formula: 'soma de imóveis de venda + locação em sites ativos (gold_loft_sites.sites_imobiliarias)' },
         { label: 'Imobiliárias no Portal', formula: 'id_cliente com pelo menos 1 imóvel também no portal' },
         { label: 'Total de sites', formula: 'soma do donut por template — COUNT de id_site_cms ativos com template preenchido' },
         { label: 'Número pequeno: com mais de um site', formula: 'imobiliárias (loftClientCode) com mais de 1 domínio oficial' },
@@ -5421,42 +5409,41 @@ window.storage = window.storage || {
 
   async function buildImoveisTab() {
     var pub = await loadCard('imoveis_publicados');
-    var pubVenda = await loadCard('publicados_venda_2026');
     var vendidos = await loadCard('vendidos_2026');
 
     var pubRow = hasRows(pub) ? pub[0] : null;
     var pubVendaN = pubRow ? parseFloat(pubRow[0]) : null;
-    var pubVenda2026 = hasRows(pubVenda) ? parseFloat(pubVenda[0][0]) : null;
+    var pubTotalN = pubRow ? parseFloat(pubRow[2]) : null;
     var vendRow = hasRows(vendidos) ? vendidos[0] : null;
     var qtdVendidos = vendRow ? parseFloat(vendRow[0]) : null;
     var valorTotal = vendRow ? parseFloat(vendRow[1]) : null;
 
     var vendidosMam = await loadCard('vendidos_2026_mam');
     var pubVsVendMes = await loadCard('publicados_vendidos_mes');
-    var periodYear = yearFromRows(pubVsVendMes) || yearFromRows(vendidosMam);
-    var yearSuffix = periodYear ? ' em ' + periodYear : '';
-    var pubLabel = 'Total publicado Portal Loft';
+    var periodYear = yearFromRows(pubVsVendMes) || yearFromRows(vendidosMam) || 2026;
+    var yearSuffix = ' em ' + periodYear;
+    var pubLabel = 'Total publicado para venda';
     var vendLabel = 'Vendidos' + yearSuffix;
     var mamRange = monthRangeLabel(vendidosMam);
-    var pubMesMom = monthOverMonth(pubVsVendMes, 1);
     var vndMesMom = monthOverMonth(vendidosMam, 1);
     var valorMesMom = monthOverMonth(vendidosMam, 2);
 
     var kpis = kpiRowHtml(
       kpiBox('Imóveis Publicados', pubRow ? compactUnitHtml(pubRow[2]) : null, null, pubRow ? (fmtCompact(pubRow[0]) + ' venda + ' + fmtCompact(pubRow[1]) + ' locação') : '') +
-      kpiBox(pubLabel, pubVenda2026 === null ? null : compactUnitHtml(pubVenda2026), pct(pubVenda2026, pubVendaN), 'do estoque de venda', false, pubMesMom && pubMesMom.pct) +
-      kpiBox(vendLabel, qtdVendidos === null ? null : compactUnitHtml(qtdVendidos), pct(qtdVendidos, pubVenda2026), 'de conversão (publicados → vendidos)', false, vndMesMom && vndMesMom.pct) +
+      kpiBox(pubLabel, pubVendaN === null ? null : compactUnitHtml(pubVendaN), pct(pubVendaN, pubTotalN), 'do portfólio publicado') +
+      kpiBox(vendLabel, qtdVendidos === null ? null : compactUnitHtml(qtdVendidos), pct(qtdVendidos, pubVendaN), 'de conversão (publicados → vendidos)', false, vndMesMom && vndMesMom.pct) +
       kpiBox('Valor Total Vendido', valorTotal === null ? null : compactUnitHtml(valorTotal, { prefix: 'R$ ' }), valorMesMom ? (Math.abs(valorMesMom.pct).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '%') : null, '', false, valorMesMom && valorMesMom.pct),
-      ['imoveis_publicados', 'publicados_venda_2026', 'vendidos_2026'],
+      ['imoveis_publicados', 'vendidos_2026'],
       [
-        { label: '% ao lado de "' + pubLabel + '"', formula: pubLabel + ' ÷ estoque de venda (Imóveis Publicados)' },
+        { label: 'Imóveis Publicados e ' + pubLabel, formula: 'sites ativos em gold_loft_sites.sites_imobiliarias — venda, locação e total' },
+        { label: '% ao lado de "' + pubLabel + '"', formula: 'imóveis de venda ÷ portfólio publicado (venda + locação)' },
         { label: '% ao lado de "' + vendLabel + '"', formula: vendLabel + ' ÷ ' + pubLabel }
       ]
     );
 
     var pubVsVendRange = monthRangeLabel(pubVsVendMes);
     var chartsRow = '<div class="panel-card users-spotlight">' +
-      cardHead('Publicados x vendidos' + yearSuffix, 'Eficiência do funil publicado → vendido' + (pubVsVendRange ? ' · ' + pubVsVendRange : ''), ['publicados_venda_2026', 'vendidos_2026', 'publicados_vendidos_mes'],
+      cardHead('Publicados x vendidos' + yearSuffix, 'Eficiência do funil publicado → vendido' + (pubVsVendRange ? ' · ' + pubVsVendRange : ''), ['imoveis_publicados', 'vendidos_2026', 'publicados_vendidos_mes'],
         [
           { label: 'Conversão do mês', formula: 'vendidos no mês mais recente ÷ publicados no mês mais recente' },
           { label: 'Média do ano e p.p.', formula: 'vendidos no ano ÷ publicados no ano; diferença em pontos percentuais' },
@@ -5465,7 +5452,6 @@ window.storage = window.storage || {
         ]) +
       publicadosVendidosSpotlightHtml(pubVsVendMes, {
         year: periodYear,
-        yearPub: pubVenda2026,
         yearVnd: qtdVendidos
       }) +
     '</div>';

@@ -1060,6 +1060,48 @@
     max-height: 220px; overflow-y: auto; white-space: pre-wrap; word-break: break-word;
   }
   .query-modal .sql-box pre { max-height: min(48vh, 420px); }
+
+  .confirm-overlay {
+    position: fixed; inset: 0; z-index: 9900;
+    background: rgba(20,39,34,0.28);
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    display: none; align-items: center; justify-content: center;
+    padding: 24px 16px;
+  }
+  .confirm-overlay.active { display: flex; }
+  .confirm-modal {
+    background: #FFFFFF; border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(20,39,34,0.25);
+    width: min(420px, 94vw);
+    padding: 22px 22px 18px;
+  }
+  .confirm-modal-title {
+    font-family: var(--sans); font-size: 17px; font-weight: 700;
+    color: var(--ink); line-height: 1.3; margin: 0 0 8px;
+  }
+  .confirm-modal-text {
+    font-family: var(--sans); font-size: 13.5px; line-height: 1.5;
+    color: var(--ink-soft); margin: 0 0 20px;
+  }
+  .confirm-modal-actions {
+    display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap;
+  }
+  .confirm-btn {
+    font-family: var(--sans); font-size: 13px; font-weight: 700;
+    border-radius: 8px; padding: 9px 16px; cursor: pointer;
+    border: 1px solid transparent; transition: background .15s ease, transform .1s ease;
+  }
+  .confirm-btn:active { transform: scale(0.97); }
+  .confirm-btn-cancel {
+    background: var(--bg); color: var(--ink); border-color: var(--border);
+  }
+  .confirm-btn-cancel:hover { background: #ECECEC; }
+  .confirm-btn-ok {
+    background: var(--laranja); color: #fff;
+    box-shadow: 0 1px 2px rgba(217,70,22,0.25);
+  }
+  .confirm-btn-ok:hover { background: var(--laranja-escuro); }
+
   .copy-btn {
     position: absolute; top: 7px; right: 7px; font-size: 10.5px; font-weight: 600; font-family: var(--sans);
     background: #1B332C; color: #CFE0D8; border: 1px solid #2C4A40; border-radius: 6px; padding: 4px 8px; cursor: pointer;
@@ -1365,6 +1407,17 @@
         <button type="button" class="query-modal-close" id="queryModalClose" title="Fechar" aria-label="Fechar">×</button>
       </div>
       <div class="query-modal-body" id="queryModalBody"></div>
+    </div>
+  </div>
+
+  <div class="confirm-overlay" id="confirmUpdateOverlay" role="presentation">
+    <div class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirmUpdateTitle">
+      <h2 class="confirm-modal-title" id="confirmUpdateTitle">Atualizar o painel?</h2>
+      <p class="confirm-modal-text">Isso vai rodar novamente todas as queries no BigQuery e substituir os dados atuais. Pode demorar alguns segundos para finalizar.</p>
+      <div class="confirm-modal-actions">
+        <button type="button" class="confirm-btn confirm-btn-cancel" id="confirmUpdateCancel">Cancelar</button>
+        <button type="button" class="confirm-btn confirm-btn-ok" id="confirmUpdateOk">Confirmar atualização</button>
+      </div>
     </div>
   </div>
 
@@ -5804,9 +5857,44 @@ window.storage = window.storage || {
     liveRunning = false;
   }
 
+  function openConfirmUpdateModal() {
+    if (liveRunning) return;
+    var overlay = document.getElementById('confirmUpdateOverlay');
+    if (!overlay) return;
+    overlay.classList.add('active');
+    var okBtn = document.getElementById('confirmUpdateOk');
+    if (okBtn) okBtn.focus();
+  }
+
+  function closeConfirmUpdateModal() {
+    var overlay = document.getElementById('confirmUpdateOverlay');
+    if (overlay) overlay.classList.remove('active');
+  }
+
   document.getElementById('updateAllBtn').addEventListener('click', function() {
-    runLiveUpdate(usedMetricIds());
+    openConfirmUpdateModal();
   });
+
+  (function wireConfirmUpdateModal() {
+    var overlay = document.getElementById('confirmUpdateOverlay');
+    var cancelBtn = document.getElementById('confirmUpdateCancel');
+    var okBtn = document.getElementById('confirmUpdateOk');
+    if (!overlay || !cancelBtn || !okBtn) return;
+
+    cancelBtn.addEventListener('click', closeConfirmUpdateModal);
+    okBtn.addEventListener('click', function() {
+      closeConfirmUpdateModal();
+      runLiveUpdate(usedMetricIds());
+    });
+    overlay.addEventListener('click', function(e) {
+      if (e.target === overlay) closeConfirmUpdateModal();
+    });
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' && overlay.classList.contains('active')) {
+        closeConfirmUpdateModal();
+      }
+    });
+  })();
 
   // ---------- portão de acesso: SSO JumpCloud (OIDC + PKCE) ----------
   var AUTH_STORAGE_KEY = 'auth_v1';

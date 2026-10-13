@@ -522,6 +522,10 @@
       cursor: help;
     }
 
+    .error-card.error-card-wide {
+      grid-column: 1 / -1;
+    }
+
     .app-avatar {
       width: 24px;
       height: 24px;
@@ -14225,6 +14229,8 @@ WHERE newdata IS NOT NULL
         }).join('');
 
         var errors = [];
+        // BigQuery daily quota: once it is hit every next query fails too, so stop and keep the saved data.
+        var quotaHit = null;
 
         for (var i = 0; i < ids.length; i++) {
           var id = ids[i];
@@ -14246,6 +14252,11 @@ WHERE newdata IS NOT NULL
             errors.push({ id: id, title: meta.title, message: e.message });
             if (iconEl) { iconEl.classList.remove('running'); iconEl.classList.add('error'); iconEl.textContent = '✕'; }
             if (itemEl) itemEl.classList.add('error');
+            if (/quota/i.test(e.message || '')) {
+              quotaHit = { done: i - errors.length + 1, pending: ids.slice(i).map(function (pid) { return METRIC_META[pid] ? METRIC_META[pid].title : pid; }) };
+              updateMinibar(ids.length, ids.length, meta.title);
+              break;
+            }
           }
           updateMinibar(i + 1, ids.length, meta.title);
         }
@@ -14260,11 +14271,19 @@ WHERE newdata IS NOT NULL
         // The header shows one date only when every metric in use is from the same day (see computeUpdateStatus).
         await refreshLastUpdatedText();
 
-        if (errors.length) {
+        if (quotaHit) {
+          errorGrid.innerHTML = '<div class="error-card error-card-wide"><div class="error-card-title">Cota diária do BigQuery esgotada</div>' +
+            '<div class="error-card-msg">' + fmtNum(quotaHit.done) + ' de ' + fmtNum(ids.length) + ' métricas atualizaram antes do limite. As outras ' + fmtNum(quotaHit.pending.length) +
+            ' continuam com os dados salvos da última atualização. A cota renova no dia seguinte; rode Atualizar tudo de novo amanhã.<br><br>Não atualizadas: ' +
+            escapeText(quotaHit.pending.join(', ')) + '</div></div>';
+          errorWrap.classList.add('active');
+          statusEl.className = 'live-status err';
+          statusEl.textContent = 'Cota do BigQuery esgotada: ' + fmtNum(quotaHit.pending.length) + ' métricas ficaram com os dados anteriores.';
+        } else if (errors.length) {
           errorGrid.innerHTML = errors.map(function (er) {
             var meta = METRIC_META[er.id];
             return '<div class="error-card"><div class="error-card-title">' + er.title + '</div>' +
-              '<div class="error-card-msg">Query: <code>' + meta.execId + '</code><br>' + er.message + '</div></div>';
+              '<div class="error-card-msg">Query: <code>' + (meta.execId || er.id) + '</code><br>' + er.message + '</div></div>';
           }).join('');
           errorWrap.classList.add('active');
           statusEl.className = 'live-status err';

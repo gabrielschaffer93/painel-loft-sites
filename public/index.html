@@ -9304,7 +9304,7 @@ WHERE newdata IS NOT NULL
         leads_mes: { sqlId: 'sql-leads-mes', execId: 'exec-leads_mes', title: 'Total de Leads por Mês' },
         leads_tipo: { sqlId: 'sql-leads-tipo', execId: 'exec-leads_tipo', title: 'Leads por Tipo' },
         imob_sem_leads: { sqlId: 'sql-imob-sem-leads', execId: 'exec-imob_sem_leads', title: 'Imobiliárias sem Leads por Mês' },
-        imob_sem_leads_detalhe: { sqlId: 'sql-imob-sem-leads-detalhe', execId: 'exec-imob_sem_leads_detalhe', title: 'Imobiliárias sem leads — detalhe' },
+        imob_sem_leads_detalhe: { sqlId: 'sql-imob-sem-leads-detalhe', execId: 'exec-imob_sem_leads_detalhe', title: 'Imobiliárias sem cliques de contato — detalhe' },
         saude_base_mes: { sqlId: 'sql-saude-base-mes', execId: 'exec-saude_base_mes', title: 'Saúde da base por mês' },
         saude_conversao: { sqlId: 'sql-saude-conversao', execId: 'exec-saude_conversao', title: 'Conversão do site' },
         imoveis_publicados: { sqlId: 'sql-imoveis-publicados', execId: 'exec-imoveis_publicados', title: 'Imóveis publicados nos sites' },
@@ -10540,7 +10540,7 @@ WHERE newdata IS NOT NULL
             '<div class="tipo-hero-name"><span class="ungrouped-dot" style="background:' + color + '"></span>' + escapeText(label) + '</div>' +
             '<div class="tipo-hero-line">' +
             '<div class="tipo-hero-pct">' + pct(value, total) + '</div>' +
-            '<div class="tipo-hero-count">' + fmtNum(value) + ' leads</div>' +
+            '<div class="tipo-hero-count">' + fmtNum(value) + ' cliques</div>' +
             '</div>' +
             '</div>';
         }
@@ -11181,7 +11181,7 @@ WHERE newdata IS NOT NULL
           : [];
         var statusHtml = items.length
           ? '<div class="imob-sem-status">' +
-            '<div class="ma-label">Status financeiro de quem ficou sem lead</div>' +
+            '<div class="ma-label">Status financeiro de quem ficou sem clique de contato</div>' +
             semLeadsBreakdownList(countBy(items, semLeadsStatusBucket), items.length) +
             '</div>'
           : '';
@@ -11831,7 +11831,7 @@ WHERE newdata IS NOT NULL
       }
 
       function semLeadsDetailTableHtml(items) {
-        if (!items.length) return '<div class="empty-note">Nenhuma imobiliária sem leads neste mês.</div>';
+        if (!items.length) return '<div class="empty-note">Nenhuma imobiliária sem cliques de contato neste mês.</div>';
         var today = new Date();
         today.setHours(0, 0, 0, 0);
         var head = '<tr>' +
@@ -11895,7 +11895,7 @@ WHERE newdata IS NOT NULL
           : [];
         return '<div class="panel-card sem-detail-card" id="semLeadsDetailCard">' +
           '<div class="panel-card-head">' +
-          '<div><div class="panel-title">Planos e status de quem está sem leads</div>' +
+          '<div><div class="panel-title">Planos e status de quem está sem cliques de contato</div>' +
           '<div class="panel-sub" id="semLeadsDetailSub">' + escapeText(semLeadsDetailSubText(hasRows(detailRows) ? items.length : null, selected)) + '</div>' +
           '</div>' +
           '<div class="sem-detail-head-actions">' +
@@ -11907,8 +11907,8 @@ WHERE newdata IS NOT NULL
           sqlDetailsHtml(['imob_sem_leads_detalhe'], [
             { label: 'Universo', formula: 'imobiliárias com evento no mês e 0 leads' },
             { label: 'Planos', formula: 'distribuição pelo nome completo do plano' },
-            { label: 'Status financeiro', formula: 'situação do contrato entre quem está sem leads; se data_previsao_cancelamento estiver preenchida, conta como Churn' }
-          ], 'Planos e status de quem está sem leads') +
+            { label: 'Status financeiro', formula: 'situação do contrato entre quem está sem cliques de contato; se data_previsao_cancelamento estiver preenchida, conta como Churn' }
+          ], 'Planos e status de quem está sem cliques de contato') +
           refreshBtnHtml(['imob_sem_leads_detalhe'], 'Rodar SQL deste gráfico') +
           '</div>' +
           '</div>' +
@@ -12529,14 +12529,14 @@ WHERE newdata IS NOT NULL
             derived: [{ label: 'Número', formula: 'status_financeiro contém "bloquead" ou "inadimplen", na mesma base do Total de Imobiliárias' }]
           }) +
           imobKpiHtml({
-            label: 'Sem leads' + (mes ? ' em ' + niceMonth(mes.mes) : ''),
+            label: 'Sem cliques de contato' + (mes ? ' em ' + niceMonth(mes.mes) : ''),
             value: mes ? fmtNum(mes.semLeads[0]) : null,
             pill: semCmp ? semCmp.pill : '',
             tone: semCmp ? semCmp.tone : 'neutral',
             sub: semCmp ? semCmp.sub : '',
             metrics: ['imob_mes_atual'],
             derived: MES_ATUAL_DERIVED.concat([
-              { label: 'Número', formula: 'imobiliárias com evento no site no período e nenhum lead' },
+              { label: 'Número', formula: 'imobiliárias com acesso no site no período e nenhum clique de contato (WhatsApp, Ligar, E-mail ou formulário)' },
               { label: 'Leitura', formula: 'menor é melhor: queda fica verde' }
             ])
           }) +
@@ -12557,7 +12557,7 @@ WHERE newdata IS NOT NULL
         var semRange = monthRangeLabel(semLeadsMes);
         var semLeadsRow = splitCardsHtml(
           '<div class="panel-card">' +
-          cardHead('Imobiliárias sem leads por mês', 'Com acesso no site e nenhum lead' + (semRange ? ' · ' + semRange : ''), ['imob_sem_leads'],
+          cardHead('Imobiliárias sem cliques de contato por mês', 'Com acesso no site e nenhum clique de contato' + (semRange ? ' · ' + semRange : ''), ['imob_sem_leads'],
             [
               { label: 'Gráfico', formula: 'imobiliárias com evento no mês e nenhum lead' },
               { label: 'Mês atual', formula: 'parcial; o traço pontilhado é o mês ainda aberto' }
@@ -12567,9 +12567,9 @@ WHERE newdata IS NOT NULL
             : queryErrorNote()) +
           '</div>',
           '<div class="panel-card ungrouped-month-card mes-atual">' +
-          cardHead('Último mês fechado', 'Quem ficou sem lead e em que situação', ['imob_sem_leads', 'imob_sem_leads_detalhe'],
+          cardHead('Último mês fechado', 'Quem ficou sem clique de contato e em que situação', ['imob_sem_leads', 'imob_sem_leads_detalhe'],
             [
-              { label: 'Número', formula: 'último mês fechado de Imobiliárias sem leads' },
+              { label: 'Número', formula: 'último mês fechado de Imobiliárias sem cliques de contato' },
               { label: 'Status', formula: 'status_financeiro de quem ficou sem lead; com data_previsao_cancelamento preenchida conta como Cancelamento previsto' }
             ]) +
           semLeadsClosedStatsHtml(semLeadsMes, semLeadsDetalhe) +
@@ -12826,8 +12826,8 @@ WHERE newdata IS NOT NULL
         var leadsLast = f ? lastClosedMonthRow(f.leadsPorMil) : null;
         var buscaSub = 'Quantos imóveis as pessoas abrem para cada busca' +
           (buscaLast ? ' · ' + niceMonth(buscaLast[0]) + ': ' + fmtNum(buscaLast[1]) + ' imóveis a cada 100 buscas' : '');
-        var leadsSub = 'Quantos leads saem dos imóveis vistos' +
-          (leadsLast ? ' · ' + niceMonth(leadsLast[0]) + ': ' + fmtNum(leadsLast[1]) + ' leads a cada 1.000 imóveis vistos' : '');
+        var leadsSub = 'Quantos cliques de contato saem dos imóveis vistos' +
+          (leadsLast ? ' · ' + niceMonth(leadsLast[0]) + ': ' + fmtNum(leadsLast[1]) + ' cliques a cada 1.000 imóveis vistos' : '');
         return '<div class="funnel-stack">' +
           '<div class="panel-card">' +
           cardHead('Etapa 1 · Views de busca e de imóvel', 'Mês a mês' + (f ? ' · ' + monthRangeLabel(f.rows) : '') + periodTxt, ['views_composicao', 'imob_mes_atual'],
@@ -12852,9 +12852,9 @@ WHERE newdata IS NOT NULL
             : queryErrorNote()) +
           '</div>' +
           '<div class="panel-card">' +
-          cardHead('Passagem 2 · Leads por 1.000 views de imóvel', leadsSub, ['views_composicao', 'leads_mes'],
+          cardHead('Passagem 2 · Cliques a cada 1.000 views de imóvel', leadsSub, ['views_composicao', 'leads_mes'],
             [
-              { label: 'Número', formula: 'leads do mês ÷ views de /imóvel do mês × 1.000' },
+              { label: 'Número', formula: 'cliques de contato do mês ÷ views de /imóvel do mês × 1.000' },
               { label: 'Selo', formula: 'mês em aberto (até D-1) vs mês anterior fechado' }
             ], f ? openMonthDeltaPillHtml(f.leadsPorMil) : '') +
           (f && f.leadsPorMil.length
@@ -12898,8 +12898,8 @@ WHERE newdata IS NOT NULL
           var leads = ch.leads[ref] || 0;
           var conv = ch.conv[ref];
           var w = Math.max(leads / maxLeads * 100, leads > 0 ? 1.5 : 0);
-          var tip = fmtNum(leads) + ' leads · ' + pct(leads, total) + ' do total' +
-            (conv == null ? '' : '<br>Conversão: ' + fmtDec1(conv) + ' leads por 1.000 pageviews');
+          var tip = fmtNum(leads) + ' cliques · ' + pct(leads, total) + ' do total' +
+            (conv == null ? '' : '<br>Conversão: ' + fmtDec1(conv) + ' cliques por 1.000 pageviews');
           return '<div class="ch-row pvm-hit" data-month="' + escapeAttr(canal) + '" data-tip="' + encodeURIComponent(tip) + '">' +
             '<div class="ch-name">' + escapeText(canal) + '</div>' +
             '<div class="ch-track"><div class="ch-fill" style="width:' + w.toFixed(1) + '%"></div></div>' +
@@ -12994,20 +12994,56 @@ WHERE newdata IS NOT NULL
 
         // 3. Qual canal gera lead?
         var channels = '<div class="panel-card">' +
-          cardHead('Leads por canal', 'Leads de cada origem de tráfego · ' + (channelModel(canais).ref ? niceMonth(channelModel(canais).ref) : 'último mês fechado'), ['trafego_canais'],
+          cardHead('Cliques por canal', 'Cliques de contato de cada origem de tráfego · ' + (channelModel(canais).ref ? niceMonth(channelModel(canais).ref) : 'último mês fechado'), ['trafego_canais'],
             [
               { label: 'Canal', formula: 'origem_trafego agrupada: Google, Google Ads, Instagram, Facebook, IA, Links (bio e WhatsApp), YouTube, Outros buscadores, Direto / sem origem, Outros' },
-              { label: 'Conversão', formula: 'leads do canal ÷ pageviews do canal × 1.000' }
+              { label: 'Conversão', formula: 'cliques do canal ÷ pageviews do canal × 1.000' }
             ]) +
           channelRankingHtml(canais) +
           '</div>';
 
+        var tipo = await loadCard('leads_tipo');
+        var health = parseHealthRows(saudeMes);
+        // 4. Por qual botão o contato acontece? (moved from Leads: these are clicks)
+        var tipoPalette = [COLORS.laranja, COLORS.laranjaEscuro, COLORS.laranjaClaro, COLORS.verde, COLORS.teal, COLORS.roxo];
+        var tipoCurrent = (tipo || []).map(function (r) {
+          return { mes: monthKey(r[0]), label: String(r[1] || ''), value: parseFloat(r[2]) || 0 };
+        }).filter(function (it) { return it.mes && it.label && isCurrentCalendarMonth(it.mes); });
+        var tipoMonth = tipoCurrent.length ? tipoCurrent[0].mes : monthKey(new Date().toISOString().slice(0, 10));
+        var tipoMonthLabel = tipoMonth
+          ? (niceMonth(tipoMonth) + (isCurrentCalendarMonth(tipoMonth) ? ' (parcial)' : ''))
+          : '';
+        var tipoItems = tipoCurrent.map(function (it, i) {
+          return { label: it.label, value: it.value, color: tipoPalette[i % tipoPalette.length] };
+        });
+        var tipoCard = '<div class="panel-card leads-tipo-card">' +
+          cardHead('Cliques por tipo', 'Botão de contato clicado' + (tipoMonthLabel ? ' · ' + tipoMonthLabel : ''), ['leads_tipo'], [
+            { label: 'Período', formula: 'somente o mês corrente (parcial até hoje)' },
+            { label: 'WhatsApp vs outros', formula: 'contato WhatsApp ÷ soma dos tipos no mês; o restante vira Outros canais' },
+            { label: 'Detalhe', formula: 'cada tipo que não é WhatsApp, com % sobre o total do mês' }
+          ]) +
+          (tipoItems.length ? leadsTipoOverviewHtml(tipoItems) : '<div class="empty-note">Rode a query para ver os tipos do mês atual.</div>') +
+          '</div>';
+        var tipoMonthly = leadsTipoMonthlyHtml(tipo);
+
+        var concRows = health.map(function (it) { return [it.mes, it.concentracao]; });
+        var concLast = lastClosedMonthRow(concRows);
+        var concCard = '<div class="panel-card">' +
+          cardHead('Concentração dos cliques de contato', '% dos cliques que ficam com os 10% de sites que mais geram' +
+            (concLast ? ' · ' + niceMonth(concLast[0]) + ': ' + fmtRate(concLast[1]) : ''),
+            ['saude_base_mes'],
+            [{ label: 'Número', formula: 'cliques dos sites no decil de maior volume ÷ cliques de todos os sites com clique (base Regular com site)' }]) +
+          (concRows.length ? lineChartHtml(concRows, COLORS.laranja, lastMonthFootnote(concRows), { compact: { decimals: 1 }, showZero: true }) : queryErrorNote()) +
+          '</div>';
+
         return questionHeadHtml(1, 'Estamos trazendo gente?') +
           usuarios + audienceRow +
-          questionHeadHtml(2, 'O tráfego chega no imóvel?') +
+          questionHeadHtml(2, 'O tráfego chega no imóvel?', 'Clique = intenção de contato no site · vira lead quando chega ao CRM') +
           funnel + detalhePorSiteCardHtml(saudeMes, daysByMonth) + crossRow +
-          questionHeadHtml(3, 'Qual canal gera lead?') +
-          channels;
+          questionHeadHtml(3, 'Qual canal gera contato?') +
+          channels +
+          questionHeadHtml(4, 'Por qual botão o contato acontece?') +
+          tipoCard + tipoMonthly + concCard;
       }
 
       // All lead types as lines on one chart. WhatsApp is ~16x the others, so the axis is non-linear:
@@ -13037,7 +13073,7 @@ WHERE newdata IS NOT NULL
           return sr.label + ' ' + pct(sr.values[ref] || 0, totals[ref]);
         }).join(' · ') : 'Mês a mês';
         return '<div class="panel-card tipo-lines-card">' +
-          cardHead('Leads por tipo, mês a mês', sub, ['leads_tipo'],
+          cardHead('Cliques por tipo, mês a mês', sub, ['leads_tipo'],
             [{ label: 'Escala', formula: 'não linear: marcas em 0, 1, 2, 3, 4 e 5 mil, depois 50, 60 e 90 mil, igualmente espaçadas' }]) +
           groupedBarsLegendHtml(series) +
           multiLineValuesHtml(months, series, { ticks: LEADS_TIPO_TICKS, breakAt: 50000, maxPx: 300 }) +
@@ -13163,14 +13199,11 @@ WHERE newdata IS NOT NULL
       }
 
       async function buildLeadsTab() {
-        var tipo = await loadCard('leads_tipo');
         var crmMes = await loadCard('leads_crm_mes');
         var crmStatus = await loadCard('leads_crm_status');
         var porImob = await loadCard('leads_crm_por_imob');
-        var saudeMes = await loadCard('saude_base_mes');
         var mesAtual = parseMesAtual(await loadCard('imob_mes_atual'));
         var periodTxt = mesAtual ? ' · selo: ' + samePeriodLabel(mesAtual) : '';
-        var health = parseHealthRows(saudeMes);
 
         // Average CRM leads per agency, only among agencies that received at least one lead in the month.
         var mediaRows = sortMonthRows(porImob || []).map(function (r) { return [monthKey(r[0]), cellNum(r, 3)]; });
@@ -13187,47 +13220,13 @@ WHERE newdata IS NOT NULL
           (mediaRows.length ? lineChartHtml(mediaRows, COLORS.laranja, lastMonthFootnote(mediaRows), { compact: { decimals: 1 }, showZero: true }) : queryErrorNote()) +
           '</div>';
 
-        // 2. Que tipo de lead é?
-        var tipoPalette = [COLORS.laranja, COLORS.laranjaEscuro, COLORS.laranjaClaro, COLORS.verde, COLORS.teal, COLORS.roxo];
-        var tipoCurrent = (tipo || []).map(function (r) {
-          return { mes: monthKey(r[0]), label: String(r[1] || ''), value: parseFloat(r[2]) || 0 };
-        }).filter(function (it) { return it.mes && it.label && isCurrentCalendarMonth(it.mes); });
-        var tipoMonth = tipoCurrent.length ? tipoCurrent[0].mes : monthKey(new Date().toISOString().slice(0, 10));
-        var tipoMonthLabel = tipoMonth
-          ? (niceMonth(tipoMonth) + (isCurrentCalendarMonth(tipoMonth) ? ' (parcial)' : ''))
-          : '';
-        var tipoItems = tipoCurrent.map(function (it, i) {
-          return { label: it.label, value: it.value, color: tipoPalette[i % tipoPalette.length] };
-        });
-        var tipoCard = '<div class="panel-card leads-tipo-card">' +
-          cardHead('Leads por tipo', 'Origem da intenção declarada' + (tipoMonthLabel ? ' · ' + tipoMonthLabel : ''), ['leads_tipo'], [
-            { label: 'Período', formula: 'somente o mês corrente (parcial até hoje)' },
-            { label: 'WhatsApp vs outros', formula: 'contato WhatsApp ÷ soma dos tipos no mês; o restante vira Outros canais' },
-            { label: 'Detalhe', formula: 'cada tipo que não é WhatsApp, com % sobre o total do mês' }
-          ]) +
-          (tipoItems.length ? leadsTipoOverviewHtml(tipoItems) : '<div class="empty-note">Rode a query para ver os tipos do mês atual.</div>') +
-          '</div>';
-        var tipoMonthly = leadsTipoMonthlyHtml(tipo);
-
         // CRM: leads that actually reached the agency.
         var crmRow = crmStatusGridHtml(crmMes, crmStatus, mesAtual, periodTxt);
 
-        var concRows = health.map(function (it) { return [it.mes, it.concentracao]; });
-        var concLast = lastClosedMonthRow(concRows);
-        var concCard = '<div class="panel-card">' +
-          cardHead('Concentração dos leads', '% dos leads que ficam com os 10% de sites que mais geram' +
-            (concLast ? ' · ' + niceMonth(concLast[0]) + ': ' + fmtRate(concLast[1]) : ''),
-            ['saude_base_mes'],
-            [{ label: 'Número', formula: 'leads dos sites no decil de maior volume ÷ leads de todos os sites com lead (base Regular com site)' }]) +
-          (concRows.length ? lineChartHtml(concRows, COLORS.laranja, lastMonthFootnote(concRows), { compact: { decimals: 1 }, showZero: true }) : queryErrorNote()) +
-          '</div>';
-
-        // Leads = what reaches the CRM. Contact-button clicks moved to Tráfego (Etapa 2 · Total de Cliques por Mês).
-        return questionHeadHtml(1, 'Quantos leads estamos gerando?') +
+        // Leads = what reaches the CRM. Click metrics (total, by type, concentration) live in Tráfego.
+        return questionHeadHtml(1, 'Quantos leads estamos gerando?', 'Lead = contato que chegou ao CRM da imobiliária') +
           crmRow +
-          '<div class="row-2col even">' + mediaCard + concCard + '</div>' +
-          questionHeadHtml(2, 'Que tipo de lead é?') +
-          tipoCard + tipoMonthly;
+          mediaCard;
       }
 
       // ---------- Portfólio tab: listings on the air and agency sales ----------

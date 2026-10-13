@@ -6,6 +6,98 @@ const { getBigQuery } = require('../lib/google');
  * Converte os resultados do BigQuery para o formato
  * esperado pelo frontend.
  */
+function splitSqlStatements(sql) {
+  const statements = [];
+  let current = '';
+  let inSingle = false;
+  let inDouble = false;
+  let inLineComment = false;
+
+  for (let i = 0; i < sql.length; i++) {
+    const char = sql[i];
+    const next = sql[i + 1];
+
+    if (inLineComment) {
+      current += char;
+      if (char === '\n') inLineComment = false;
+      continue;
+    }
+
+    if (!inSingle && !inDouble && char === '-' && next === '-') {
+      current += char;
+      inLineComment = true;
+      continue;
+    }
+
+    if (char === "'" && !inDouble) inSingle = !inSingle;
+    else if (char === '"' && !inSingle) inDouble = !inDouble;
+
+    if (char === ';' && !inSingle && !inDouble) {
+      const statement = current.trim();
+      if (statement && statement.replace(/--.*$/gm, '').trim()) statements.push(statement);
+      current = '';
+      continue;
+    }
+
+    current += char;
+  }
+
+  const tail = current.trim();
+  if (tail && tail.replace(/--.*$/gm, '').trim()) statements.push(tail);
+  return statements;
+}
+
+function scalar(value) {
+  if (value == null) return '';
+  if (typeof value === 'object' && value.value !== undefined) return String(value.value);
+  return String(value);
+}
+
+function monthIso(raw) {
+  const match = scalar(raw).match(/^(\d{4})-(\d{2})/);
+  return match ? match[1] + '-' + match[2] + '-01' : scalar(raw);
+}
+
+function asNumber(raw) {
+  const n = parseFloat(scalar(raw));
+  return Number.isFinite(n) ? n : 0;
+}
+
+function statementKind(sql) {
+  const text = sql.replace(/--.*$/gm, '');
+  if (/LIKE\s+["']%Cross%["']/i.test(text)) return 'cross';
+  if (/tipo_pagina\s*=\s*'busca'/i.test(text)) return 'busca';
+  if (/tipo_pagina\s*=\s*'detalhe'/i.test(text)) return 'detalhe';
+  return '';
+}
+
+// The chart needs one row per month. The stored SQL stays the three statements.
+function mergeViewsComposicao(parts) {
+  const byMonth = new Map();
+
+  function ensure(mes) {
+    const key = monthIso(mes);
+    if (!byMonth.has(key)) byMonth.set(key, { busca: 0, imovel: 0, cross: 0 });
+    return byMonth.get(key);
+  }
+
+  parts.forEach(function (part) {
+    const kind = statementKind(part.sql);
+    (part.rows || []).forEach(function (row) {
+      if (kind === 'cross') ensure(row.mes).cross += asNumber(row.quantidade_eventos);
+      else if (kind === 'busca') ensure(row.mes).busca += asNumber(row.quantidade_buscas);
+      else if (kind === 'detalhe') ensure(row.mes).imovel += asNumber(row.quantidade_buscas);
+    });
+  });
+
+  return Array.from(byMonth.entries())
+    .sort(function (a, b) { return a[0].localeCompare(b[0]); })
+    .map(function (entry) {
+      const totals = entry[1];
+      return [entry[0], String(totals.busca), String(totals.imovel), String(totals.cross)];
+    });
+}
+
 function toRows(rawRows) {
   if (!rawRows || !rawRows.length) return [];
 
@@ -92,6 +184,12 @@ module.exports = async (req, res) => {
       return;
     }
 
+    // Ver Query and Rodar SQL both read this string from api/queries.js.
+    if (String((req.query && req.query.sql) || '') === '1') {
+      res.status(200).json({ metric, sql });
+      return;
+    }
+
     /**
      * Verifica se já existe resultado em cache.
      */
@@ -125,14 +223,28 @@ module.exports = async (req, res) => {
      */
     const bigquery = await getBigQuery();
 
-    const [job] = await bigquery.createQueryJob({
-      query: sql,
-      location: 'US',
-    });
+    const statements = splitSqlStatements(sql);
+    let rows;
 
-    const [rawRows] = await job.getQueryResults();
-
-    const rows = toRows(rawRows);
+    if (metric === 'views_composicao' && statements.length > 1) {
+      const parts = [];
+      for (let i = 0; i < statements.length; i++) {
+        const [job] = await bigquery.createQueryJob({
+          query: statements[i],
+          location: 'US',
+        });
+        const [rawRows] = await job.getQueryResults();
+        parts.push({ sql: statements[i], rows: rawRows });
+      }
+      rows = mergeViewsComposicao(parts);
+    } else {
+      const [job] = await bigquery.createQueryJob({
+        query: sql,
+        location: 'US',
+      });
+      const [rawRows] = await job.getQueryResults();
+      rows = toRows(rawRows);
+    }
 
     /**
      * Salva o resultado no cache.
@@ -171,3 +283,6 @@ module.exports = async (req, res) => {
     });
   }
 };
+
+module.exports.splitSqlStatements = splitSqlStatements;
+module.exports.mergeViewsComposicao = mergeViewsComposicao;

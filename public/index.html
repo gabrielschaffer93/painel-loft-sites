@@ -9279,13 +9279,6 @@ WHERE newdata IS NOT NULL
         ativacao_pct: null,
         leads_per_1000_pv: null
       };
-      var SEASONALITY_2025 = {
-        reliable: false,
-        novVsOut: 0.872,
-        dezVsOut: 0.769,
-        note: 'Índice out–dez/2025 não é confiável (base ainda em migração). A projeção usa média simples.'
-      };
-
       var TABS = [
         { id: 'metricas', label: 'Principais Métricas' },
         { id: 'imobiliarias', label: 'Imobiliárias' },
@@ -9332,7 +9325,7 @@ WHERE newdata IS NOT NULL
       };
 
       // Queries still in METRIC_META / backend, but no card calls loadCard() on them.
-      var UNUSED_METRICS = { portal_sem: true, cms_sites_total: true, publicados_venda_2026: true, portal_com_count: true };
+      var UNUSED_METRICS = { portal_sem: true, cms_sites_total: true, publicados_venda_2026: true, portal_com_count: true, tmpl_conversao: true, total_leads: true };
 
       function usedMetricIds() {
         return Object.keys(METRIC_META).filter(function (id) { return !UNUSED_METRICS[id]; });
@@ -11303,115 +11296,6 @@ WHERE newdata IS NOT NULL
           shareHtml + compareHtml;
       }
 
-      function leadsHealthHtml(totalImob, semLeadsMes, semLeadsDetalhe, conversaoRows) {
-        var ativacaoItems = deriveActivationItems(totalImob, semLeadsMes);
-        var lastAtiv = ativacaoItems[ativacaoItems.length - 1];
-        var ativStatus = lastAtiv ? activationStatusFromDetail(semLeadsDetalhe, lastAtiv.mes) : { regular: 0, fora: 0, listed: 0 };
-
-        var cmpAtiv = healthCmp(ativacaoItems, 'ativacao', { unit: 'pp' });
-        var cmpSem = healthCmp(ativacaoItems, 'semLead', { higherIsBetter: false });
-        var convItems = parseConversaoRows(conversaoRows);
-        var convClosed = convItems.filter(function (it) { return !isCurrentCalendarMonth(it.mes); });
-        var lastConv = convClosed[convClosed.length - 1];
-        var convPrev3 = convClosed.slice(0, -1).slice(-3);
-        var convAvg = convPrev3.length ? avgOf(convPrev3.map(function (it) { return it.conv; })) : null;
-        var convRel = (lastConv && convAvg) ? (lastConv.conv - convAvg) / convAvg * 100 : null;
-        var convStatus = conversionStatus(convRel);
-
-        var ativacaoDerived = [
-          { label: 'Atual', formula: 'Total de Imobiliárias − Imobiliárias sem leads' },
-          { label: 'Total', formula: 'mesmo número do card Total de Imobiliárias (ATIVO + feature 259)' },
-          { label: '% hoje', formula: 'Atual ÷ Total' }
-        ];
-        var semLeadsDerived = [
-          { label: 'Regular', formula: 'status financeiro Regular em Quem está sem leads no mesmo mês' },
-          { label: 'Bloqueado/Inadimplente', formula: 'status financeiro Bloqueado ou Inadimplente em Quem está sem leads no mesmo mês' },
-          { label: 'Total', formula: 'mesmo número do último mês do gráfico Imobiliárias sem leads' }
-        ];
-        var ativacaoCard = paceMeterCardHtml({
-          label: 'Ativação',
-          failed: !lastAtiv,
-          metrics: ['subtotais', 'imob_sem_leads', 'imob_sem_leads_detalhe'],
-          derived: ativacaoDerived,
-          tone: cmpAtiv.tone,
-          cols: lastAtiv ? [
-            { label: 'Atual', value: fmtNum(lastAtiv.comLead) },
-            { label: 'Ativação', value: fmtRate(lastAtiv.ativacao) },
-            { label: 'Total', value: fmtNum(lastAtiv.base) }
-          ] : [],
-          current: lastAtiv ? lastAtiv.comLead : 0,
-          max: lastAtiv ? lastAtiv.base : 0,
-          footLeft: lastAtiv ? fmtRate(lastAtiv.ativacao) + ' hoje' : '',
-          footRight: lastAtiv ? fmtNum(lastAtiv.comLead) + ' de ' + fmtNum(lastAtiv.base) : ''
-        });
-        var regularPct = ativStatus.listed ? ativStatus.regular / ativStatus.listed * 100 : null;
-        var foraPct = ativStatus.listed ? ativStatus.fora / ativStatus.listed * 100 : null;
-        var semLeadsCard = paceMeterCardHtml({
-          label: 'Sem leads',
-          failed: !lastAtiv,
-          metrics: ['imob_sem_leads', 'imob_sem_leads_detalhe'],
-          derived: semLeadsDerived,
-          tone: cmpSem.tone,
-          cols: lastAtiv ? [
-            { label: 'Regular', value: fmtNum(ativStatus.regular) },
-            { label: 'Bloqueado', value: fmtNum(ativStatus.fora) },
-            { label: 'Total', value: fmtNum(lastAtiv.semLead) }
-          ] : [],
-          current: ativStatus.regular,
-          max: lastAtiv ? lastAtiv.semLead : 0,
-          footLeft: regularPct == null ? '' : fmtRate(regularPct) + ' Regular',
-          footRight: foraPct == null ? '' : fmtRate(foraPct) + ' Bloqueado'
-        });
-        var convDerived = [
-          { label: 'Atual', formula: 'leads ÷ pageviews × 1.000 no último mês fechado · base Regular (ATIVO + feature 259)' },
-          { label: 'Leads', formula: 'leads da base Regular no último mês fechado' },
-          { label: 'Pageviews', formula: 'pageviews da base Regular no último mês fechado' },
-          { label: 'Status', formula: 'Bom se ≥ +' + METRIC_STATUS.conversionGoodLiftPct + '% vs média dos 3 meses fechados anteriores; Estável entre −' + METRIC_STATUS.conversionBadDropPct + '% e +' + METRIC_STATUS.conversionGoodLiftPct + '%; Ruim se < −' + METRIC_STATUS.conversionBadDropPct + '%' }
-        ];
-        var convCard = paceMeterCardHtml({
-          label: 'Conversão do site',
-          tip: 'Mede quanto do tráfego vira contato. Tráfego caiu e conversão estável = divulgação; conversão caiu = site.',
-          failed: !lastConv,
-          metric: 'saude_conversao',
-          derived: convDerived,
-          tone: convStatus.tone,
-          pill: convStatus.label,
-          cols: lastConv ? [
-            { label: 'Atual', value: fmtConv(lastConv.conv) },
-            { label: 'Leads', value: compactUnitHtml(lastConv.leads) },
-            { label: 'Pageviews', value: compactUnitHtml(lastConv.pageviews) }
-          ] : [],
-          current: lastConv ? lastConv.conv : 0,
-          max: lastConv ? (convAvg || lastConv.conv) : 0,
-          footLeft: lastConv ? fmtConv(lastConv.conv) + ' a cada 1.000 pv' : '',
-          footRight: lastConv && convAvg != null ? 'média ' + fmtConv(convAvg) : ''
-        });
-
-        var kpis = [
-          { label: 'Ativação', cmp: cmpAtiv, fmtCmp: function (c) { return c.delta == null ? '' : fmtSigned(c.delta, ' p.p.', 1) + ' vs média ' + c.refLabel; }, sub: healthMonthLabel(lastAtiv && lastAtiv.mes) },
-          { label: 'Sem leads', cmp: cmpSem, fmtCmp: function (c) { return c.delta == null ? '' : fmtSigned(c.delta, '', 0) + ' vs média ' + c.refLabel; }, sub: healthMonthLabel(lastAtiv && lastAtiv.mes) },
-          { label: 'Conversão do site', cmp: { tone: convStatus.tone, rel: convRel, refLabel: convPrev3.length ? monthSpanLabel(convPrev3.map(function (it) { return [it.mes]; })) : '' }, fmtCmp: function (c) { return c.rel == null ? '' : fmtSigned(c.rel, '%', 1) + ' vs média ' + c.refLabel; }, sub: lastConv ? healthMonthLabel(lastConv.mes) : '' }
-        ];
-
-        var worst = kpis[0];
-        kpis.forEach(function (k) {
-          var rank = { bad: 3, warn: 2, good: 1, neutral: 0 };
-          if ((rank[k.cmp.tone] || 0) > (rank[worst.cmp.tone] || 0)) worst = k;
-        });
-        var verdictTone = worst.cmp.tone === 'good' ? 'good' : (worst.cmp.tone === 'warn' ? 'warn' : 'bad');
-        var verdictName = verdictTone === 'good' ? 'Saudável' : (verdictTone === 'warn' ? 'Atenção' : 'Risco');
-        var verdictMonth = worst.sub || (lastAtiv ? niceMonth(lastAtiv.mes) : '');
-        var verdictWhy = worst.label + (verdictMonth ? ' em ' + verdictMonth : '') +
-          (worst.fmtCmp && worst.fmtCmp(worst.cmp) ? ' — ' + worst.fmtCmp(worst.cmp) : '');
-
-        return '<div class="health-verdict ' + verdictTone + '">' +
-          '<div class="health-verdict-mark">' + verdictName + '</div>' +
-          '<div><div class="health-verdict-title">A base está tirando valor do site?</div>' +
-          '<div class="health-verdict-text">' + verdictWhy + '</div></div>' +
-          '</div>' +
-          '<div class="health-pace-row">' + ativacaoCard + semLeadsCard + convCard + '</div>';
-      }
-
       function linearTrend(values) {
         var n = values.length;
         var meanX = (n - 1) / 2;
@@ -11440,26 +11324,6 @@ WHERE newdata IS NOT NULL
           low: current + Math.min.apply(null, recent) * monthsLeft,
           high: current + Math.max.apply(null, recent) * monthsLeft,
           goal: goal
-        };
-      }
-
-      function semLeadsProjection(semRows, yearEnd, goal) {
-        var closed = closedMonthRows(semRows).slice(-6);
-        if (closed.length < 3) return null;
-        var values = closed.map(function (r) { return cellNum(r, 1); });
-        var trend = linearTrend(values);
-        var last = parseYearMonth(closed[closed.length - 1][0]);
-        var stepsToDec = (yearEnd.getFullYear() * 12 + 12) - (last.year * 12 + last.month);
-        var projection = Math.max(trend.intercept + trend.slope * (values.length - 1 + stepsToDec), 0);
-        return {
-          label: 'Imobiliárias sem leads (nível em dez)',
-          current: fmtNum(values[values.length - 1]) + ' em ' + niceMonth(closed[closed.length - 1][0]),
-          pace: fmtSigned(Math.round(trend.slope), '/mês'),
-          projection: projection,
-          low: Math.max(projection - trend.spread, 0),
-          high: projection + trend.spread,
-          goal: goal,
-          lowerIsBetter: true
         };
       }
 
@@ -11554,167 +11418,6 @@ WHERE newdata IS NOT NULL
           '<span><i class="dash" style="border-top-color:' + color + '"></i>Projeção</span>' +
           '<span><i class="ref dash"></i>Referência</span>' +
           '</div></div>';
-      }
-
-      function leadsProjectionHtml(healthRows, leadsMesRows, totalLeadsHist) {
-        var today = new Date();
-        var year = today.getFullYear();
-        var items = parseHealthRows(healthRows).filter(function (it) {
-          var ym = parseYearMonth(it.mes);
-          return ym && ym.year === year;
-        });
-        var closedHealth = items.filter(function (it) { return !isCurrentCalendarMonth(it.mes); });
-        if (closedHealth.length < 2) return '';
-
-        var leadsYear = sortMonthRows(leadsMesRows || []).filter(function (r) {
-          var ym = parseYearMonth(r[0]);
-          return ym && ym.year === year;
-        }).map(function (r) {
-          return { mes: monthKey(r[0]), leads: parseFloat(r[1]) || 0 };
-        });
-        var closedLeads = leadsYear.filter(function (it) { return !isCurrentCalendarMonth(it.mes); });
-        if (closedLeads.length < 2) return '';
-
-        // Full-year closed months drive the pace (not only the last 3).
-        var paceSrc = closedLeads;
-        var remaining = [];
-        for (var m = today.getMonth() + 1; m <= 12; m++) {
-          remaining.push(year + '-' + String(m).padStart(2, '0') + '-01');
-        }
-        if (!remaining.length) return '';
-
-        var totalRealizedLeads = closedLeads.reduce(function (s, it) { return s + (it.leads || 0); }, 0);
-        var avgLeadsPace = avgOf(paceSrc.map(function (it) { return it.leads || 0; })) || 71467;
-        var minLeadsPace = Math.min.apply(null, paceSrc.map(function (it) { return it.leads || 0; })) || 60787;
-        var maxLeadsPace = Math.max.apply(null, paceSrc.map(function (it) { return it.leads || 0; })) || 74709;
-        var remMonths = remaining.length;
-
-        var restProjBase = avgLeadsPace * remMonths;
-        var totalProjBase = totalRealizedLeads + restProjBase;
-        var histTotal = (totalLeadsHist != null && isFinite(totalLeadsHist) && totalLeadsHist > 0) ? totalLeadsHist : null;
-        var projShareHist = histTotal ? totalProjBase / histTotal * 100 : null;
-
-        // Activation: monthly % of Regular+site base with ≥1 lead. Year view = average of closed months.
-        var lastClosedHealth = closedHealth[closedHealth.length - 1];
-        var firstAtiv = closedHealth[0].ativacao || 0;
-        var lastAtiv = lastClosedHealth.ativacao || 0;
-        var yearAtivAvg = avgOf(closedHealth.map(function (it) { return it.ativacao || 0; })) || 0;
-        var lastClosedMonthNum = parseYearMonth(lastClosedHealth.mes).month;
-        var monthsToDec = Math.max(12 - lastClosedMonthNum, 0);
-        var monthlyAtivGain = closedHealth.length > 1
-          ? (lastAtiv - firstAtiv) / (closedHealth.length - 1)
-          : 0;
-        var projAtivDec = Math.min(100, Math.max(0, lastAtiv + monthlyAtivGain * monthsToDec));
-
-        var firstConv = closedHealth[0].leadsPer1000 || 0;
-        var lastConv = lastClosedHealth.leadsPer1000 || 0;
-        var avgConv = avgOf(closedHealth.map(function (it) { return it.leadsPer1000 || 0; })) || 0;
-        var avgPv = avgOf(closedHealth.map(function (it) { return it.pageviews || 0; })) || 0;
-        var monthlyConvGain = closedHealth.length > 1
-          ? (lastConv - firstConv) / (closedHealth.length - 1)
-          : 0;
-        var projConvDec = Math.max(0, lastConv + monthlyConvGain * monthsToDec);
-
-        var firstMediana = closedHealth[0].mediana || 0;
-        var lastMediana = lastClosedHealth.mediana || 0;
-        var yearMedianaAvg = avgOf(closedHealth.map(function (it) { return it.mediana || 0; })) || 0;
-        var monthlyMedianaGain = closedHealth.length > 1
-          ? (lastMediana - firstMediana) / (closedHealth.length - 1)
-          : 0;
-        var projMedianaDec = Math.max(0, lastMediana + monthlyMedianaGain * monthsToDec);
-
-        var lastClosedLabel = niceMonth(lastClosedHealth.mes);
-        var ativGainLabel = (monthlyAtivGain >= 0 ? '+' : '') + monthlyAtivGain.toFixed(1).replace('.', ',') + ' p.p./mês';
-
-        var strategicKpis = '<div class="kpi-row proj-kpis">' +
-          '<div class="kpi-box kpi-box-highlight">' +
-          '<div class="kpi-label">Volume de Leads 2026</div>' +
-          '<div class="kpi-value">' + fmtCompact(totalProjBase) + '</div>' +
-          '<div class="health-kpi-ctx">fechamento projetado do ano · ritmo ~' + fmtCompact(avgLeadsPace) + '/mês</div>' +
-          '<div class="proj-need">Soma dos meses fechados (' + fmtCompact(totalRealizedLeads) + ') + projeção de ' + remMonths +
-          ' mês(es) até dezembro (' + fmtCompact(restProjBase) + '), com a média de todo o ano' +
-          (histTotal != null ? '. Equivale a <strong>' + fmtRate(projShareHist) + '</strong> do histórico total (' + fmtCompact(histTotal) + ' leads)' : '') + '.</div>' +
-          sqlDetailsHtml(['leads_mes', 'total_leads'], [
-            { label: 'Volume 2026', formula: 'soma de leads_mes nos meses fechados do ano + média de todos esses meses × meses restantes (inclui o mês corrente)' },
-            { label: '% do histórico', formula: 'projeção 2026 ÷ total_leads (histórico sem filtro de ano)' }
-          ], 'Volume de Leads 2026') +
-          '</div>' +
-
-          '<div class="kpi-box">' +
-          '<div class="kpi-label">Taxa de Ativação da Base</div>' +
-          '<div class="kpi-value">' + projAtivDec.toFixed(1).replace('.', ',') + '%</div>' +
-          '<div class="health-kpi-ctx">projeção em dezembro</div>' +
-          '<div class="proj-need">Projetamos a fatia da base Regular com site que gera ≥1 lead no mês. Em ' +
-          lastClosedLabel + ' estavam em ' + lastAtiv.toFixed(1).replace('.', ',') + '%; a média de ' + year +
-          ' é ' + yearAtivAvg.toFixed(1).replace('.', ',') + '%. Mantendo o ritmo de ' + ativGainLabel +
-          ' visto no ano, chegamos a ' + projAtivDec.toFixed(1).replace('.', ',') + '% em dezembro.</div>' +
-          sqlDetailsHtml(['saude_base_mes'], [
-            { label: 'Ativação mensal', formula: 'imobiliárias Regular+site com ≥1 lead no mês ÷ base Regular+site' },
-            { label: 'Média do ano', formula: 'média das ativações mensais dos meses fechados de ' + year },
-            { label: 'Projeção dez', formula: 'último mês fechado + ganho médio mês a mês (jan→último fechado) × meses até dezembro' }
-          ], 'Taxa de Ativação da Base') +
-          '</div>' +
-
-          '<div class="kpi-box">' +
-          '<div class="kpi-label">Conversão (leads / 1.000 pv)</div>' +
-          '<div class="kpi-value">' + projConvDec.toFixed(1).replace('.', ',') + '</div>' +
-          '<div class="health-kpi-ctx">projeção em dezembro</div>' +
-          '<div class="proj-need">Leads por mil pageviews na base Regular com site. Média de ' + year + ': ' +
-          avgConv.toFixed(1).replace('.', ',') + ' · ' + lastClosedLabel + ': ' + lastConv.toFixed(1).replace('.', ',') +
-          '. Com a tendência do ano, a projeção em dezembro é ' + projConvDec.toFixed(1).replace('.', ',') +
-          ' (~' + fmtCompact(avgPv) + ' pageviews/mês).</div>' +
-          sqlDetailsHtml(['saude_base_mes'], [
-            { label: 'Conversão mensal', formula: 'leads ÷ pageviews × 1.000 na base Regular+site' },
-            { label: 'Média do ano', formula: 'média das conversões mensais dos meses fechados' },
-            { label: 'Projeção dez', formula: 'último mês fechado + ganho médio mês a mês × meses até dezembro' }
-          ], 'Conversão (leads / 1.000 pv)') +
-          '</div>' +
-
-          '<div class="kpi-box">' +
-          '<div class="kpi-label">Leads por Site Ativo (mediana)</div>' +
-          '<div class="kpi-value">' + fmtNum(Math.round(projMedianaDec)) + ' leads</div>' +
-          '<div class="health-kpi-ctx">projeção em dezembro</div>' +
-          '<div class="proj-need">Mediana de leads entre sites com ≥1 pageview no mês. Média de ' + year + ': ' +
-          yearMedianaAvg.toFixed(1).replace('.', ',') + ' · ' + lastClosedLabel + ': ' + fmtNum(Math.round(lastMediana)) +
-          '. Projetando a tendência do ano, dezembro fica em ~' + fmtNum(Math.round(projMedianaDec)) + ' leads por site.</div>' +
-          sqlDetailsHtml(['saude_base_mes'], [
-            { label: 'Mediana mensal', formula: 'mediana de leads em sites com pageview no mês' },
-            { label: 'Média do ano', formula: 'média das medianas mensais dos meses fechados' },
-            { label: 'Projeção dez', formula: 'último mês fechado + ganho médio mês a mês × meses até dezembro' }
-          ], 'Leads por Site Ativo (mediana)') +
-          '</div>' +
-          '</div>';
-
-        // Chart: closed months as actual; current+future as projection at full-year pace
-        var chartActuals = closedLeads.map(function (it) {
-          return { mes: it.mes, value: it.leads, kind: 'actual', partial: false };
-        });
-        var chartProjected = remaining.map(function (mes) {
-          return { mes: mes, value: avgLeadsPace, kind: 'proj', low: minLeadsPace, high: maxLeadsPace };
-        });
-
-        var note = '<strong>Metodologia de Projeção:</strong> Realizado = soma de leads_mes nos meses fechados de ' + year + ' (' + fmtNum(totalRealizedLeads) + '). Ritmo = média de <strong>todos</strong> os meses fechados do ano (~' + fmtNum(Math.round(avgLeadsPace)) + '/mês), aplicada em ' + remMonths + ' mês(es) restantes até dezembro' +
-          (histTotal != null ? '. A projeção de ' + year + ' equivale a <strong>' + fmtRate(projShareHist) + '</strong> do histórico total de leads (' + fmtNum(histTotal) + ').' : '.') +
-          ' Ativação usa a média mensal do ano na base Regular+site (não é o acumulado único do ano).';
-
-        return '<div class="pm-metas-section-head" style="margin-top: 32px;">' +
-          '<div class="pm-metas-section-title">Projeção Estratégica & Fechamento 2026</div>' +
-          '</div>' +
-          '<div class="panel-card">' +
-          cardHead('Visão Estratégica de Fechamento de 2026',
-            'Projeção de volume anual, ativação da base e ritmo até o fechamento do ano',
-            ['leads_mes', 'total_leads', 'saude_base_mes'],
-            [
-              { label: 'Volume 2026', formula: 'soma de leads_mes nos meses fechados + média de todos esses meses × meses restantes até dezembro' },
-              { label: '% do histórico', formula: 'projeção 2026 ÷ total_leads (histórico sem filtro de ano)' },
-              { label: 'Ativação', formula: 'média mensal do ano (Regular+site com ≥1 lead ÷ base) e projeção até dezembro pela tendência mês a mês' },
-              { label: 'Conversão', formula: 'média do ano + projeção em dezembro pela tendência mês a mês (leads ÷ pageviews × 1.000)' },
-              { label: 'Leads por Site', formula: 'média das medianas do ano + projeção em dezembro pela tendência mês a mês' }
-            ]) +
-          strategicKpis +
-          paceProjectionChartHtml(chartActuals, chartProjected, avgLeadsPace, COLORS.laranja) +
-          '<p class="projection-note">' + note + '</p>' +
-          '</div>';
       }
 
       var semLeadsSelectedMonth = null;
@@ -13349,24 +13052,49 @@ WHERE newdata IS NOT NULL
           rankingCard;
       }
 
+      // Lead = contact that reached the agency CRM. Clique = contact intent on the site (not a lead yet).
       var PRINCIPAL_METRICS = [
         {
+          id: 'crm',
+          label: 'Leads entregues no CRM',
+          kind: 'FLUXO',
+          higherIsBetter: true,
+          display: 'total',
+          series: 'crm',
+          queries: ['leads_crm_mes'],
+          derived: [
+            { label: 'O que analisa', formula: 'Contatos vindos dos sites que chegaram ao CRM da imobiliária (veículo de captação Site Imobiliária)' },
+            { label: 'Período', formula: 'Só meses fechados. O mês em andamento fica fora para não comparar período parcial.' }
+          ]
+        },
+        {
+          id: 'imob_lead',
+          label: 'Imobiliárias que receberam leads',
+          kind: 'ESTOQUE',
+          higherIsBetter: true,
+          series: 'imob_leads',
+          queries: ['leads_crm_por_imob'],
+          derived: [
+            { label: 'O que analisa', formula: 'Imobiliárias com pelo menos 1 lead entregue no CRM no mês' },
+            { label: 'Trimestre', formula: 'Média mensal dos 3 meses do trimestre' }
+          ]
+        },
+        {
           id: 'leads',
-          label: 'Leads gerados no trimestre',
+          label: 'Cliques de contato',
           kind: 'FLUXO',
           higherIsBetter: true,
           display: 'total',
           series: 'leads',
-          monthlyAvg: true,
           queries: ['leads_mes'],
           derived: [
-            { label: 'O que analisa', formula: 'Total de leads gerados nos sites via WhatsApp, formulário de imóvel, ligação, visita, e-mail e contato geral' },
-            { label: 'Período parcial', formula: 'Soma o realizado até hoje. Não projeta novembro nem dezembro.' }
+            { label: 'O que analisa', formula: 'Cliques em WhatsApp, Ligar, E-mail, Agendar visita e formulários nos sites. É intenção de contato, ainda não é lead.' },
+            { label: 'Período', formula: 'Só meses fechados.' }
           ]
         },
         {
           id: 'conv',
-          label: 'Conversão (leads / 1.000 pageviews)',
+          label: 'Cliques por 1.000 pageviews',
           kind: 'TAXA',
           higherIsBetter: true,
           rate: 'ratio',
@@ -13376,23 +13104,46 @@ WHERE newdata IS NOT NULL
           digits: 1,
           queries: ['leads_mes', 'pageviews_mes'],
           derived: [
-            { label: 'O que analisa', formula: 'Relação entre a quantidade de leads gerados e o total de visualizações de páginas nos sites' },
-            { label: 'Fórmula', formula: '(soma de leads_mes ÷ soma de pageviews_mes) × 1.000 no período' }
+            { label: 'O que analisa', formula: 'Quantos cliques de contato o site gera a cada 1.000 páginas vistas' },
+            { label: 'Fórmula', formula: 'soma de cliques de contato ÷ soma de pageviews × 1.000 no período' }
           ]
         },
         {
           id: 'pv',
-          label: 'Pageviews no trimestre',
+          label: 'Pageviews',
           kind: 'FLUXO',
           higherIsBetter: true,
           display: 'total',
           series: 'pageviews',
-          monthlyAvg: true,
           queries: ['pageviews_mes'],
           derived: [
-            { label: 'O que analisa', formula: 'Soma total de visualizações de páginas em todas as páginas dos sites Loft no período' },
-            { label: 'Média por mês', formula: 'No trimestre, calcula a média mensal dividindo a soma total do período por 3' },
-            { label: 'Período parcial', formula: 'Soma o realizado até hoje. Não projeta meses futuros.' }
+            { label: 'O que analisa', formula: 'Soma de páginas vistas em todos os sites Loft no período' }
+          ]
+        },
+        {
+          id: 'imob_periodo',
+          label: 'Novos sites',
+          kind: 'FLUXO',
+          higherIsBetter: true,
+          display: 'total',
+          series: 'imob_periodo',
+          queries: ['novas_imob'],
+          derived: [
+            { label: 'O que analisa', formula: 'Novos sites criados na base no período' },
+            { label: 'Fonte', formula: 'sites_imobiliarias por data_criacao' }
+          ]
+        },
+        {
+          id: 'risk',
+          label: 'Imobiliárias sem cliques de contato',
+          kind: 'ESTOQUE',
+          higherIsBetter: false,
+          series: 'imob_sem_leads',
+          fixedSub: 'com acesso no site e nenhum clique de contato',
+          queries: ['imob_sem_leads'],
+          derived: [
+            { label: 'O que analisa', formula: 'Imobiliárias com acesso no site e nenhum clique de contato no mês' },
+            { label: 'Trimestre', formula: 'Média mensal dos 3 meses do trimestre' }
           ]
         },
         {
@@ -13402,63 +13153,13 @@ WHERE newdata IS NOT NULL
           higherIsBetter: true,
           display: 'total',
           series: 'cross',
-          monthlyAvg: true,
           queries: ['views_composicao'],
           derived: [
-            { label: 'O que analisa', formula: 'Total de cliques e visualizações em vitrines de imóveis em parceria (CrossSell) nos sites' },
+            { label: 'O que analisa', formula: 'Cliques e visualizações nas vitrines de imóveis em parceria (CrossSell) nos sites' },
             { label: 'Fonte', formula: 'Eventos com nome_evento = "CrossSell" no Google Tag Manager (GTM)' }
           ]
-        },
-        {
-          id: 'imob_periodo',
-          label: 'Novos sites na base',
-          kind: 'FLUXO',
-          higherIsBetter: true,
-          display: 'total',
-          series: 'imob_periodo',
-          monthlyAvg: true,
-          queries: ['novas_imob'],
-          derived: [
-            { label: 'O que analisa', formula: 'Quantidade de novos sites criados na base no período' },
-            { label: 'Fonte', formula: 'sites_imobiliarias por data_criacao, a partir de 2026-01-01' }
-          ]
-        },
-        {
-          id: 'imob_lead',
-          label: 'Imobiliárias que geram leads',
-          kind: 'ESTOQUE',
-          higherIsBetter: true,
-          series: 'imob_leads',
-          shareSeries: 'imob_ativacao',
-          shareSuffix: 'da base ativa',
-          queries: ['saude_base_mes'],
-          derived: [
-            { label: 'O que analisa', formula: 'Quantidade de imobiliárias ativas que receberam pelo menos 1 lead no período' },
-            { label: 'Taxa de ativação', formula: 'Percentual de imobiliárias com lead em relação ao total da base ativa de clientes' }
-          ]
-        },
-        {
-          id: 'risk',
-          label: 'Imobiliárias sem leads',
-          kind: 'ESTOQUE',
-          higherIsBetter: false,
-          series: 'imob_sem_leads',
-          fixedSub: 'com acesso e 0 leads no período',
-          queries: ['imob_sem_leads'],
-          derived: [
-            { label: 'O que analisa', formula: 'Quantidade de imobiliárias com acessos e eventos no site, porém sem nenhum lead gerado no período' }
-          ]
-        },
+        }
       ];
-      var TMPL_CONV_CARD = {
-        label: 'Templates que mais convertem',
-        queries: ['tmpl_conversao'],
-        derived: [
-          { label: 'Métrica', formula: 'leads do histórico ÷ sites ativos publicados — exclui Sem template (fora da carteira)' },
-          { label: 'Filtro', formula: 'Sites ATIVO + publicados (sem loftpreview); inclui sites ativos com 0 lead' },
-          { label: 'Join', formula: 'eventos.id_site_cms = sites_imobiliarias.id_site_cms; fallback no template do evento' }
-        ]
-      };
       var principalView = { mode: 'quarter', series: {}, days: {}, failed: {} };
 
       function monthValueMap(rows, col) {
@@ -13592,35 +13293,14 @@ WHERE newdata IS NOT NULL
         return fmtNum(Math.floor(value));
       }
 
-      function formatBarCompact(def, value) {
-        if (value == null || !isFinite(value) || value <= 0) return '—';
-        if (def.digits) {
-          var factor = Math.pow(10, def.digits);
-          var truncated = Math.floor(value * factor) / factor;
-          return truncated.toLocaleString('pt-BR', { minimumFractionDigits: def.digits, maximumFractionDigits: def.digits });
-        }
-        if (value >= 1000000) {
-          var m = Math.floor(value / 100000) / 10;
-          return (m >= 10 ? Math.floor(m) : m.toFixed(1).replace('.', ',')) + 'M';
-        }
-        if (value >= 100000) {
-          return Math.floor(value / 1000).toLocaleString('pt-BR') + 'k';
-        }
-        if (value >= 1000) {
-          var k = Math.floor(value / 100) / 10;
-          var str = (k % 1 === 0) ? String(k) : k.toFixed(1).replace('.', ',');
-          return str + 'k';
-        }
-        return fmtNum(Math.floor(value));
-      }
-
       function principalDeltaHtml(current, previous, higherIsBetter) {
         if (current == null || previous == null || !isFinite(previous) || previous === 0) return '';
         var rel = (current - previous) / Math.abs(previous) * 100;
         var improved = higherIsBetter ? rel > 0.05 : rel < -0.05;
         var worse = higherIsBetter ? rel < -0.05 : rel > 0.05;
         var tone = improved ? 'good' : (worse ? 'bad' : 'flat');
-        var arrow = improved ? '<span class="pm-delta-arrow">↑</span> ' : (worse ? '<span class="pm-delta-arrow">↓</span> ' : '<span class="pm-delta-arrow">→</span> ');
+        // Arrow shows the direction of the value; the color says whether that is good.
+        var arrow = '<span class="pm-delta-arrow">' + (rel > 0.05 ? '↑' : (rel < -0.05 ? '↓' : '→')) + '</span> ';
         return '<span class="kpi-pill ' + tone + '">' + arrow + fmtSigned(rel, '%', 1) + '</span>';
       }
 
@@ -13631,12 +13311,8 @@ WHERE newdata IS NOT NULL
         var current = points[points.length - 1];
         var previous = points.length > 1 ? points[points.length - 2] : null;
         var cardTitle = def.label;
-        if (def.id === 'leads') cardTitle = mode === 'month' ? 'Leads gerados no mês' : 'Leads gerados no trimestre';
-        if (def.id === 'pv') cardTitle = mode === 'month' ? 'Pageviews no mês' : 'Pageviews no trimestre';
-        if (def.id === 'imob_periodo') cardTitle = mode === 'month' ? 'Novos sites no mês' : 'Novos sites na base';
-        if (def.id === 'imob_lead') cardTitle = mode === 'month' ? 'Imobiliárias que geram leads no mês' : 'Imobiliárias que geram leads';
-        if (def.id === 'cross') cardTitle = mode === 'month' ? 'Cliques em CrossSell no mês' : 'Cliques em CrossSell no trimestre';
-        if (def.id === 'risk') cardTitle = mode === 'month' ? 'Imobiliárias sem leads no mês' : 'Imobiliárias sem leads';
+        if (def.kind === 'FLUXO') cardTitle += mode === 'month' ? ' no mês' : ' no trimestre';
+        if (def.kind === 'ESTOQUE' && mode !== 'month') cardTitle += ' (média mensal)';
         var title = pmCardTopHtml(cardTitle, def.queries);
         var sqlBtn = sqlDetailsHtml(def.queries, def.derived, cardTitle);
 
@@ -13688,7 +13364,7 @@ WHERE newdata IS NOT NULL
           var height = Math.max(6, val / max * 100);
           var tip = point.period.label + ': ' + formatPrincipal(def, val) + (isCurrent && point.agg && point.agg.partial ? ' (parcial)' : '');
           var fillClass = 'pm-bar-fill' + (isCurrent ? ' current' : '') + (isCurrent && point.agg && point.agg.partial ? ' partial' : '');
-          var compactVal = formatBarCompact(def, val);
+          var compactVal = val > 0 ? formatPrincipal(def, val) : '—';
 
           return '<div class="pm-bar-col' + (isCurrent ? ' current' : '') + '" title="' + escapeAttr(tip) + '" data-tooltip="' + escapeAttr(tip) + '">' +
             '<div class="pm-bar-val">' + compactVal + '</div>' +
@@ -13716,216 +13392,109 @@ WHERE newdata IS NOT NULL
       }
 
       /* ---- render: ranking de templates por conversão ---- */
-      function tmplDisplayName(raw) {
-        var cleaned = String(raw || '').replace(/^template_?/i, '').replace(/_/g, ' ').trim();
-        var n = normalizeTemplateName(cleaned);
-        if (!n || /desconhec|unknown/.test(n)) return 'Avançado 3';
-        var adv = n.match(/avancado\s*0*(\d+)/);
-        if (adv) return 'Avançado ' + adv[1];
-        var ess = n.match(/essencial\s*0*(\d+)/);
-        if (ess) return 'Essencial ' + ess[1];
-        if (/essencial/.test(n)) return 'Essencial';
-        if (/avancado/.test(n)) return 'Avançado';
-        return cleaned;
+      /* ---- hero: resumo executivo acima de Metas 2026 ---- */
+      // Last closed month among the months that have CRM leads or clicks (the open month never anchors a comparison).
+      function lastClosedPrincipalMonth() {
+        var keys = Object.keys(principalView.series.crm || {}).concat(Object.keys(principalView.series.leads || {}))
+          .filter(function (k) { return !isCurrentCalendarMonth(k) && !isFutureCalendarMonth(k); })
+          .sort();
+        if (keys.length) return keys[keys.length - 1];
+        return shiftMonthKey(monthKey(new Date().toISOString().slice(0, 10)), -1);
       }
 
-      function isUnassignedTemplate(raw) {
-        var n = normalizeTemplateName(String(raw || '').replace(/^template_?/i, '').replace(/_/g, ' '));
-        return n === 'sem template';
-      }
-
-      function tmplRate(row) {
-        return parseFloat(row && row[5]) || 0;
-      }
-
-      function tmplRankCardHtml(def, tmplConvRows) {
-        var sqlBtn = sqlDetailsHtml(def.queries, def.derived, def.label);
-        var title = pmCardTopHtml(def.label, def.queries);
-        var ranked = (tmplConvRows || []).filter(function (r) {
-          return !isUnassignedTemplate(r[0]);
-        }).sort(function (a, b) {
-          return tmplRate(b) - tmplRate(a);
-        }).slice(0, 3);
-
-        if (!ranked.length) {
-          var ghostBars = [0, 1, 2].map(function () {
-            return '<div class="pm-bar-col ghost">' +
-              '<div class="pm-bar-val">—</div>' +
-              '<div class="pm-bar-track ghost"><div class="pm-bar-fill ghost"></div></div>' +
-              '<div class="pm-bar-label">—</div>' +
-              '</div>';
-          }).join('');
-          return '<div class="pm-card tmpl-rank-card is-pending">' + title +
-            '<div class="pm-pending-body">' +
-            '<div class="pm-pending-tag"><svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.25" stroke="currentColor" stroke-width="1.5"/><path d="M8 4.5v3.8l2.5 1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><span>Aguardando dados</span></div>' +
-            '<div class="pm-pending-sub">Query em processamento no BigQuery</div>' +
-            '</div>' +
-            '<div class="pm-bars ghost-bars">' + ghostBars + '</div>' +
-            '<div class="pm-foot"><span class="pm-foot-cmp ghost">—</span>' + sqlBtn + '</div>' +
-            '</div>';
+      /* ---- hero: pulse of the last closed month ---- */
+      function dashSummaryHtml() {
+        var series = principalView.series;
+        var lastKey = lastClosedPrincipalMonth();
+        var prevKey = shiftMonthKey(lastKey, -1);
+        function val(name, key) {
+          var map = series[name] || {};
+          var v = map[key];
+          return (v == null || !isFinite(v)) ? null : v;
+        }
+        function deltaPct(name) {
+          var cur = val(name, lastKey);
+          var prev = val(name, prevKey);
+          return (cur != null && prev) ? (cur - prev) / prev * 100 : null;
+        }
+        function deltaTxt(d) {
+          return d == null ? '' : ' (' + fmtSigned(d, '%', 1) + ' vs ' + niceMonth(prevKey) + ')';
         }
 
-        var top = ranked[0];
-        var topRate = tmplRate(top);
-        var topName = tmplDisplayName(top[0]);
-        var max = Math.max.apply(null, ranked.map(tmplRate).concat([1]));
-        var bars = ranked.map(function (r, index) {
-          var isCurrent = index === 0;
-          var name = tmplDisplayName(r[0]);
-          var val = tmplRate(r);
-          var height = Math.max(6, val / max * 100);
-          var tip = name + ': ' + fmtNum(val) + ' leads por site ativo';
-          var fillClass = 'pm-bar-fill' + (isCurrent ? ' current' : '');
-          return '<div class="pm-bar-col' + (isCurrent ? ' current' : '') + '" title="' + escapeAttr(tip) + '" data-tooltip="' + escapeAttr(tip) + '">' +
-            '<div class="pm-bar-val">' + fmtNum(val) + '</div>' +
-            '<div class="pm-bar-track"><div class="' + fillClass + '" style="height:' + height.toFixed(1) + '%"></div></div>' +
-            '<div class="pm-bar-label">' + escapeText(name) + '</div>' +
-            '</div>';
-        }).join('');
+        var crm = val('crm', lastKey);
+        var imobLead = val('imob_leads', lastKey);
+        var media = val('imob_media', lastKey);
+        var cliques = val('leads', lastKey);
+        var pv = val('pageviews', lastKey);
+        var novos = val('imob_periodo', lastKey);
+        var semCliques = val('imob_sem_leads', lastKey);
+        var conv = (cliques != null && pv) ? cliques / pv * 1000 : null;
+        var dCrm = deltaPct('crm');
+        var dCliques = deltaPct('leads');
+        var dSem = deltaPct('imob_sem_leads');
 
-        return '<div class="pm-card tmpl-rank-card">' +
-          title +
-          '<div class="pm-value-row">' +
-          '<div class="pm-value">' + fmtNum(topRate) + '</div>' +
-          '</div>' +
-          '<div class="pm-sub-wrap"><div class="pm-sub">leads por site ativo · <strong>' + escapeText(topName) + '</strong></div></div>' +
-          '<div class="pm-bars">' + bars + '</div>' +
-          '<div class="pm-foot"><span class="pm-foot-cmp"><span class="pm-foot-icon"><svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M2 13h12v1H2v-1Zm1-3h2.5v2H3v-2Zm3.5-3H9v5H6.5V7Zm3.5-4H13v9h-3V3Z"/></svg></span><span>Top 3 por conversão · <strong>histórico</strong></span></span>' + sqlBtn + '</div>' +
-          '</div>';
-      }
-
-      /* ---- hero: resumo executivo acima de Metas 2026 ---- */
-      function dashSummaryHtml() {
-        // --- dados do período mais recente ---
-        var leadsS    = principalView.series.leads           || {};
-        var pvS       = principalView.series.pageviews       || {};
-        var semLeadsS = principalView.series.imob_sem_leads  || {};
-        var imobLeadsS= principalView.series.imob_leads      || {};
-
-        var keys    = Object.keys(leadsS).sort();
-        var lastKey = keys.length     ? keys[keys.length - 1] : null;
-        var prevKey = keys.length > 1 ? keys[keys.length - 2] : null;
-
-        var totalLeads = lastKey ? (leadsS[lastKey]    || 0) : null;
-        var totalPv    = lastKey ? (pvS[lastKey]       || 0) : null;
-        var prevLeads  = prevKey ? (leadsS[prevKey]    || 0) : null;
-        var semLeadsN  = lastKey ? (semLeadsS[lastKey] || 0) : null;
-        var imobComN   = lastKey ? (imobLeadsS[lastKey]|| 0) : null;
-
-        var conv          = (totalLeads != null && totalPv)    ? (totalLeads / totalPv * 1000)              : null;
-        var deltaLeadsPct = (totalLeads != null && prevLeads)  ? ((totalLeads - prevLeads) / prevLeads * 100) : null;
-
-        // --- templates ---
         var essencial = 0, avancados = 0;
-        (principalView.tmpl || []).forEach(function(r) {
+        (principalView.tmpl || []).forEach(function (r) {
           var n = parseFloat(r[1]) || 0;
           if (isEssencialTemplate(r[0])) essencial += n; else avancados += n;
         });
         var totalTmpl = essencial + avancados;
         var advPct = totalTmpl ? (avancados / totalTmpl * 100) : null;
 
-        // --- helpers ---
-        function fmtK(n) {
-          if (n == null) return '—';
-          if (n >= 1000000) return (n/1000000).toFixed(1).replace('.',',') + 'M';
-          if (n >= 1000)    return (n/1000).toFixed(1).replace('.',',') + 'k';
-          return fmtNum(Math.round(n));
-        }
-        function fmtPct(n, dec) {
-          if (n == null) return '—';
-          return n.toFixed(dec != null ? dec : 1).replace('.',',') + '%';
-        }
-        function fmtDec(n, dec) {
-          if (n == null) return '—';
-          return n.toFixed(dec != null ? dec : 1).replace('.',',');
-        }
-        function sign(n) { return (n != null && n >= 0) ? '+' : ''; }
-
-        // --- itens card Principais Entregas ---
         var entregaItems = [];
+        if (crm != null) entregaItems.push('<strong>' + fmtNum(crm) + ' leads entregues no CRM</strong>' + deltaTxt(dCrm));
+        if (imobLead != null) entregaItems.push('<strong>' + fmtNum(imobLead) + ' imobiliárias</strong> receberam pelo menos 1 lead' + (media != null ? ', média de ' + fmtDec1(media) + ' por imobiliária' : ''));
+        if (cliques != null) entregaItems.push('<strong>' + fmtNum(cliques) + ' cliques de contato</strong> nos sites' + (conv != null ? ', ' + fmtDec1(conv) + ' a cada 1.000 pageviews' : ''));
+        if (novos != null) entregaItems.push('<strong>' + fmtNum(novos) + ' novos sites</strong> na base');
 
-        if (totalLeads != null) {
-          var deltaStr = deltaLeadsPct != null
-            ? ' (' + sign(deltaLeadsPct) + fmtPct(deltaLeadsPct) + ' vs mês anterior)'
-            : '';
-          entregaItems.push('<strong>' + fmtK(totalLeads) + ' leads gerados</strong> no período mais recente' + deltaStr);
-        }
-        if (conv != null) {
-          entregaItems.push('Conversão de <strong>' + fmtDec(conv) + ' leads/mil pageviews</strong> nos sites ativos');
-        }
-        if (imobComN != null) {
-          entregaItems.push('<strong>' + fmtK(imobComN) + ' imobiliárias</strong> geraram pelo menos um lead no período');
-        }
-        if (advPct != null) {
-          entregaItems.push('<strong>' + fmtPct(advPct) + '</strong> da base já utiliza o template Avançado');
-        }
-
-        // --- itens card Pontos de Atenção ---
         var atencaoItems = [];
+        if (dCrm != null && dCrm < 0) atencaoItems.push('Leads entregues no CRM caíram <strong>' + fmtRate(Math.abs(dCrm)) + '</strong> vs ' + niceMonth(prevKey));
+        if (dCliques != null && dCliques < 0) atencaoItems.push('Cliques de contato caíram <strong>' + fmtRate(Math.abs(dCliques)) + '</strong> vs ' + niceMonth(prevKey));
+        if (semCliques != null && semCliques > 0) atencaoItems.push('<strong>' + fmtNum(semCliques) + ' imobiliárias</strong> com acesso no site e nenhum clique de contato' + deltaTxt(dSem));
+        if (advPct != null && advPct < 80) atencaoItems.push('<strong>' + fmtRate(advPct) + '</strong> dos sites no template Avançado, meta é 80%');
+        if (!atencaoItems.length) atencaoItems.push('Sem quedas em relação a ' + niceMonth(prevKey));
 
-        if (semLeadsN != null && semLeadsN > 0) {
-          atencaoItems.push('<strong>' + fmtNum(Math.round(semLeadsN)) + ' imobiliárias</strong> sem nenhum lead no período — risco de churn');
-        }
-        if (advPct != null && advPct < 80) {
-          atencaoItems.push('Apenas <strong>' + fmtPct(advPct) + '</strong> usam template Avançado — meta é 80%');
-        }
-        if (conv != null && conv < 10) {
-          atencaoItems.push('Conversão abaixo de <strong>10 leads/mil pv</strong> — revisar CTAs e UX dos templates');
-        }
-        if (essencial > avancados && totalTmpl > 0) {
-          atencaoItems.push('Maioria da base ainda no template Essencial — acelerar migração para Avançado');
-        }
-        if (!atencaoItems.length) {
-          atencaoItems.push('Sem pontos críticos identificados no período atual');
-        }
-
-        function makeList(items, cardClass) {
-          return items.map(function(txt) {
-            return '<div class="dash-hero-text-item">' +
-              '<span class="dash-hero-text-bullet"></span>' +
-              '<span>' + txt + '</span>' +
-              '</div>';
+        function makeList(items) {
+          return items.map(function (txt) {
+            return '<div class="dash-hero-text-item"><span class="dash-hero-text-bullet"></span><span>' + txt + '</span></div>';
           }).join('');
         }
 
         var cardMetricas =
           '<div class="dash-hero-card metricas">' +
           '<div class="dash-hero-card-label metricas">Principais Entregas</div>' +
-          '<div class="dash-hero-text-list">' + makeList(entregaItems, 'metricas') + '</div>' +
-          sqlDetailsHtml(['leads_mes', 'pageviews_mes', 'saude_base_mes', 'template'], [
-            { label: 'Leads', formula: 'leads do mês mais recente em leads_mes' },
-            { label: 'Conversão', formula: 'leads ÷ pageviews × 1.000 no mesmo mês' },
-            { label: 'Imobiliárias com lead', formula: 'imobiliárias com pelo menos 1 lead no mês' },
-            { label: 'Template avançado', formula: 'sites em Avançado ÷ total de sites com template' }
+          '<div class="dash-hero-text-list">' + makeList(entregaItems) + '</div>' +
+          sqlDetailsHtml(['leads_crm_mes', 'leads_crm_por_imob', 'leads_mes', 'pageviews_mes', 'novas_imob'], [
+            { label: 'Período', formula: 'último mês fechado, comparado ao mês anterior' },
+            { label: 'Leads', formula: 'contatos do site que chegaram ao CRM da imobiliária' },
+            { label: 'Imobiliárias', formula: 'com pelo menos 1 lead no CRM no mês; média = leads ÷ essas imobiliárias' },
+            { label: 'Cliques de contato', formula: 'intenção de contato no site; taxa = cliques ÷ pageviews × 1.000' }
           ], 'Principais Entregas') +
           '</div>';
 
         var cardAtencao =
           '<div class="dash-hero-card atencao">' +
           '<div class="dash-hero-card-label atencao">Pontos de Atenção</div>' +
-          '<div class="dash-hero-text-list">' + makeList(atencaoItems, 'atencao') + '</div>' +
-          sqlDetailsHtml(['imob_sem_leads', 'template', 'leads_mes', 'pageviews_mes'], [
-            { label: 'Sem leads', formula: 'imobiliárias com acesso no mês e 0 leads' },
-            { label: 'Template avançado', formula: 'sites em Avançado ÷ total de sites com template — meta 80%' },
-            { label: 'Conversão', formula: 'leads ÷ pageviews × 1.000 no mês mais recente' }
+          '<div class="dash-hero-text-list">' + makeList(atencaoItems) + '</div>' +
+          sqlDetailsHtml(['leads_crm_mes', 'leads_mes', 'imob_sem_leads', 'template'], [
+            { label: 'Quedas', formula: 'aparecem quando o último mês fechado ficou abaixo do mês anterior' },
+            { label: 'Sem cliques de contato', formula: 'imobiliárias com acesso no site e nenhum clique de contato no mês' },
+            { label: 'Template Avançado', formula: 'sites em Avançado ÷ total de sites com template, meta 80%' }
           ], 'Pontos de Atenção') +
           '</div>';
 
-        // --- descrição dinâmica ---
-        var monthLabel = lastKey ? niceMonth(lastKey) : '2026';
-        var leadsStr = totalLeads != null ? fmtK(totalLeads) + ' leads' : 'dados carregando';
-        var convStr  = conv != null ? fmtDec(conv) + ' leads/mil pv' : '—';
-        var ativStr  = advPct != null ? fmtPct(advPct) : '—';
+        var desc = crm != null
+          ? 'Em <strong>' + niceMonth(lastKey) + '</strong>, último mês fechado, os sites entregaram <strong>' + fmtNum(crm) + ' leads</strong> no CRM' +
+            (imobLead != null ? ' de <strong>' + fmtNum(imobLead) + ' imobiliárias</strong>' : '') +
+            (cliques != null ? ' e geraram <strong>' + fmtNum(cliques) + ' cliques de contato</strong>' : '') + '. '
+          : 'Rode Atualizar tudo para carregar o último mês fechado. ';
+        desc += 'Lead é o contato que chegou ao CRM; clique é a intenção de contato no site.';
 
         return '<div class="dash-hero">' +
           '<div class="dash-hero-left">' +
-          '<div class="dash-hero-eyebrow">Loft Sites — Visão Geral 2026</div>' +
+          '<div class="dash-hero-eyebrow">Loft Sites — Último mês fechado</div>' +
           '<h2 class="dash-hero-title">Saúde & Performance dos Sites</h2>' +
-          '<p class="dash-hero-desc">' +
-          'Em <strong>' + monthLabel + '</strong>, os sites geraram <strong>' + leadsStr + '</strong> com taxa de conversão de <strong>' + convStr + '</strong>. ' +
-          '<strong>' + ativStr + '</strong> dos sites ativos já utilizam o template Avançado. ' +
-          'Acompanhe as metas 2026, métricas de tráfego e rankings de template abaixo.' +
-          '</p>' +
+          '<p class="dash-hero-desc">' + desc + '</p>' +
           '</div>' +
           '<div class="dash-hero-right">' + cardMetricas + cardAtencao + '</div>' +
           '</div>';
@@ -13965,11 +13534,6 @@ WHERE newdata IS NOT NULL
         var closedLeads = leadsSeries.filter(function (it) {
           return !isCurrentCalendarMonth(it.key) && !isFutureCalendarMonth(it.key);
         });
-        var momDeltas = [];
-        for (var di = 1; di < closedLeads.length; di++) {
-          momDeltas.push(closedLeads[di].value - closedLeads[di - 1].value);
-        }
-        var avgMomDelta = momDeltas.length ? avgOf(momDeltas.slice(-3)) : 0;
         var lastClosedVal = closedLeads.length ? closedLeads[closedLeads.length - 1].value : 0;
         var atualLeads = 0;
         var lastQuarterSeen = false;
@@ -13978,23 +13542,16 @@ WHERE newdata IS NOT NULL
           atualLeads += leadsMap[key];
           lastQuarterSeen = true;
         });
+        // Simple pace: closed months as they are, the open month at its daily pace, future months repeat the last closed month.
         var projLeads = 0;
-        var cursor = lastClosedVal;
         qMonths.forEach(function (key) {
-          if (isFutureCalendarMonth(key)) {
-            cursor = cursor + avgMomDelta;
-            projLeads += Math.max(0, cursor);
-            return;
-          }
+          if (isFutureCalendarMonth(key)) { projLeads += lastClosedVal; return; }
           if (isCurrentCalendarMonth(key)) {
-            var actual = leadsMap[key] || 0;
-            cursor = Math.max(actual, lastClosedVal + avgMomDelta);
-            projLeads += Math.max(0, cursor);
+            var cov = periodCoverage([key]);
+            projLeads += cov.observedDays ? (leadsMap[key] || 0) / cov.observedDays * cov.calendarDays : lastClosedVal;
             return;
           }
-          var pastVal = leadsMap[key] || 0;
-          projLeads += pastVal;
-          cursor = pastVal;
+          projLeads += leadsMap[key] || 0;
         });
         var metaLeads = META_LEADS;
         var leadsOk = lastQuarterSeen && leadsSeries.length > 0;
@@ -14002,10 +13559,10 @@ WHERE newdata IS NOT NULL
         var leadsPct = metaLeads ? atualLeads / metaLeads * 100 : 0;
         var leadsTip = !leadsOk
           ? 'Rode a query para atualizar este indicador.'
-          : 'Atual: soma dos leads do último trimestre fechado (' + prevQLabel + ').\n\nProjeção: fecha o trimestre corrente (' + qLabel + ') com a variação média mês a mês dos últimos 3 meses fechados (' +
-            (avgMomDelta >= 0 ? '+' : '') + fmtCompact(avgMomDelta) + '/mês).\n\nMeta: 270 mil oportunidades no trimestre.\n\nÚltimo trimestre: ' +
-            fmtCompact(atualLeads) + ' · projeção ' + qLabel + ': ' + fmtCompact(projLeads) +
-            (projLeads >= metaLeads ? ' · no ritmo da meta.' : ' · abaixo da meta.');
+          : 'Medida em cliques de contato (intenção de contato no site), não em leads do CRM, até a definição da meta ser alinhada.\n\n' +
+            prevQLabel + ' (último trimestre fechado): ' + fmtNum(atualLeads) + ' cliques.\n\nProjeção ' + qLabel + ': meses fechados como estão, o mês em andamento no ritmo diário atual e os meses seguintes repetindo o último mês fechado = ' +
+            fmtNum(Math.round(projLeads)) + (projLeads >= metaLeads ? ' · no ritmo da meta.' : ' · abaixo da meta.') +
+            '\n\nMeta: ' + fmtNum(metaLeads) + ' por trimestre.';
 
         var essencial = 0, avancados = 0;
         (tmplRows || []).forEach(function (r) {
@@ -14045,26 +13602,27 @@ WHERE newdata IS NOT NULL
             footRight: pubPct == null ? '' : fmtNum(comPub) + ' de ' + fmtNum(totalImob) + ' imobiliárias'
           }) +
           paceMeterCardHtml({
-            label: 'Gerar Mais Oportunidades de Leads',
+            label: 'Mais Oportunidades (cliques de contato)',
             tip: leadsTip,
             failed: !leadsOk,
             metrics: ['leads_mes'],
             derived: [
-              { label: 'Atual', formula: 'soma de leads_mes no último trimestre fechado' },
-              { label: 'Projeção', formula: 'fecha o trimestre corrente com a variação média mês a mês dos últimos 3 meses fechados' },
-              { label: 'Meta', formula: '270 mil oportunidades no trimestre' }
+              { label: 'Unidade', formula: 'cliques de contato no site (não leads do CRM) até alinhar a definição da meta' },
+              { label: 'Atual', formula: 'soma dos cliques de contato no último trimestre fechado' },
+              { label: 'Projeção', formula: 'meses fechados + mês em andamento no ritmo diário + meses seguintes iguais ao último mês fechado' },
+              { label: 'Meta', formula: '270 mil cliques de contato no trimestre' }
             ],
             tone: leadsTone,
             pill: leadsTone === 'good' ? 'No ritmo' : 'Em risco',
             cols: !leadsOk ? [] : [
-              { label: 'Atual', value: fmtCompact(atualLeads) },
-              { label: 'Projeção', value: fmtCompact(projLeads) },
-              { label: 'Meta', value: fmtCompact(metaLeads) }
+              { label: prevQLabel, value: fmtNum(atualLeads) },
+              { label: 'Projeção ' + qLabel, value: fmtNum(Math.round(projLeads)) },
+              { label: 'Meta', value: fmtNum(metaLeads) }
             ],
             current: atualLeads,
             max: metaLeads,
             footLeft: !leadsOk ? '' : '<strong>' + fmtRate(leadsPct) + '</strong> da meta',
-            footRight: !leadsOk ? '' : prevQLabel + ' · meta 270 mil'
+            footRight: !leadsOk ? '' : prevQLabel + ' · meta ' + fmtNum(metaLeads) + ' cliques'
           }) +
           paceMeterCardHtml({
             label: 'Mínimo de 80% no Avançado',
@@ -14094,18 +13652,14 @@ WHERE newdata IS NOT NULL
       }
 
       function principalMetricasHtml() {
-        var keys = Object.keys(principalView.series.leads || {}).concat(Object.keys(principalView.series.pageviews || {})).sort();
-        var anchor = keys.length ? keys[keys.length - 1] : monthKey(new Date().toISOString().slice(0, 10));
+        // Only closed periods: the last closed month, or in quarter mode the last month of the last closed quarter.
+        var anchor = lastClosedPrincipalMonth();
+        var anchorYm = parseYearMonth(anchor);
+        if (principalView.mode !== 'month' && anchorYm && anchorYm.month % 3 !== 0) anchor = shiftMonthKey(anchor, -(anchorYm.month % 3));
         var periods = principalPeriods(principalView.mode, anchor);
         var cards = PRINCIPAL_METRICS.map(function (def) {
           return principalCardHtml(def, periods, principalView.mode);
         });
-        cards.push(tmplRankCardHtml(TMPL_CONV_CARD, principalView.tmplConv));
-        var derived = [
-          { label: 'Fluxo no período parcial', formula: 'soma do realizado no período; mês corrente entra parcial e meses futuros não entram' },
-          { label: 'Conversão (leads / 1.000 pageviews)', formula: 'soma de leads_mes ÷ soma de pageviews_mes × 1.000 no período' },
-          { label: 'Pageviews', formula: 'soma de pageviews_mes no período' }
-        ];
         return dashSummaryHtml() +
           principalMetasHtml(principalView.tmpl, principalView.leadsMes, principalView.pubImob) +
           '<div class="pm-metas-section-head" style="margin-top: 26px;">' +
@@ -14113,30 +13667,27 @@ WHERE newdata IS NOT NULL
           '</div>' +
           '<div class="pm-head">' +
           '<div class="pm-toggle" role="tablist">' +
-          '<button type="button" data-pm-mode="quarter"' + (principalView.mode === 'quarter' ? ' class="active"' : '') + '>Últimos 3 trimestres</button>' +
-          '<button type="button" data-pm-mode="month"' + (principalView.mode === 'month' ? ' class="active"' : '') + '>Últimos 3 meses</button>' +
+          '<button type="button" data-pm-mode="quarter"' + (principalView.mode === 'quarter' ? ' class="active"' : '') + '>Últimos 3 trimestres fechados</button>' +
+          '<button type="button" data-pm-mode="month"' + (principalView.mode === 'month' ? ' class="active"' : '') + '>Últimos 3 meses fechados</button>' +
           '</div>' +
           '</div>' +
           '<div class="kpi-row">' + cards.join('') + '</div>';
       }
 
       async function buildMetricasTab() {
+        var crmRows = await loadCard('leads_crm_mes');
+        var porImobRows = await loadCard('leads_crm_por_imob');
         var leadsRows = await loadCard('leads_mes');
         var pvRows = await loadCard('pageviews_mes');
         var dayRows = await loadCard('saude_conversao');
-        var saudeRows = await loadCard('saude_base_mes');
         var novasImobRows = await loadCard('novas_imob');
         var viewsRows = await loadCard('views_composicao');
         var semLeadsRows = await loadCard('imob_sem_leads');
         var tmplRows = await loadCard('template');
-        var tmplConvRows = await loadCard('tmpl_conversao');
         var pubImobRows = await loadCard('imobs_com_publicados');
-        var totalLeadsRows = await loadCard('total_leads');
         principalView.tmpl = tmplRows;
-        principalView.tmplConv = tmplConvRows;
         principalView.leadsMes = leadsRows;
         principalView.pubImob = pubImobRows;
-        var totalLeadsHist = hasRows(totalLeadsRows) ? parseFloat(totalLeadsRows[0][0]) : null;
 
         var leadsMap = monthValueMap(leadsRows, 1);
         var crossMap = {};
@@ -14149,25 +13700,26 @@ WHERE newdata IS NOT NULL
         });
 
         principalView.series = {
+          crm: monthValueMap(crmRows, 1),
+          imob_leads: monthValueMap(porImobRows, 1),
+          imob_media: monthValueMap(porImobRows, 3),
           leads: leadsMap,
           pageviews: monthValueMap(pvRows, 1),
           imob_periodo: monthValueMap(novasImobRows, 1),
-          imob_leads: monthValueMap(saudeRows, 3),
-          imob_ativacao: monthValueMap(saudeRows, 4),
           cross: crossMap,
           imob_sem_leads: monthValueMap(semLeadsRows, 1)
         };
         principalView.days = monthValueMap(dayRows, 4);
         principalView.failed = {
+          crm: !hasRows(crmRows),
+          imob_leads: !hasRows(porImobRows),
           leads: !hasRows(leadsRows),
           pageviews: !hasRows(pvRows),
           imob_periodo: !hasRows(novasImobRows),
-          imob_leads: !hasRows(saudeRows),
-          imob_ativacao: !hasRows(saudeRows),
           cross: !hasRows(viewsRows),
           imob_sem_leads: !hasRows(semLeadsRows)
         };
-        return principalMetricasHtml() + leadsProjectionHtml(saudeRows, leadsRows, totalLeadsHist);
+        return principalMetricasHtml();
       }
 
       var TAB_BUILDERS = { metricas: buildMetricasTab, imobiliarias: buildImobiliariasTab, trafego: buildTrafegoTab, leads: buildLeadsTab, imoveis: buildImoveisTab };

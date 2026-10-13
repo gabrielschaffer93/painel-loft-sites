@@ -145,7 +145,7 @@ module.exports = async (req, res) => {
       String((req.query && req.query.snapshot) || '') === '1';
 
     if (snapshot) {
-      res.status(200).json(await cache.snapshot());
+      res.status(200).json(await cache.snapshot(Object.keys(QUERIES)));
       return;
     }
 

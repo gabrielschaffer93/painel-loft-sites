@@ -517,6 +517,11 @@
       flex-wrap: wrap;
     }
 
+    #lastUpdatedText.is-stale {
+      color: #B45309;
+      cursor: help;
+    }
+
     .app-avatar {
       width: 24px;
       height: 24px;
@@ -9297,13 +9302,13 @@ WHERE newdata IS NOT NULL
         pageviews: { sqlId: 'sql-pageviews', execId: 'exec-pageviews', title: 'Total de Pageviews' },
         pageviews_mes: { sqlId: 'sql-pageviews-mes', execId: 'exec-pageviews_mes', title: 'Total de Pageviews por Mês' },
         views_composicao: { sqlId: 'sql-views-composicao', execId: 'exec-views_composicao', title: 'Composição das views por mês' },
-        total_leads: { sqlId: 'sql-total-leads', execId: 'exec-total_leads', title: 'Total de Leads' },
-        leads_crm: { sqlId: 'sql-leads-crm', execId: 'exec-leads_crm', title: 'Leads Cadastrados no CRM' },
+        total_leads: { sqlId: 'sql-total-leads', execId: 'exec-total_leads', title: 'Total de cliques de contato' },
+        leads_crm: { sqlId: 'sql-leads-crm', execId: 'exec-leads_crm', title: 'Leads entregues no CRM' },
         leads_crm_mes: { sqlId: 'sql-leads-crm-mes', execId: 'exec-leads_crm_mes', title: 'Cadastrados no CRM por mês' },
         leads_crm_status: { sqlId: 'sql-leads-crm-status', execId: 'exec-leads_crm_status', title: 'Cadastrados no CRM por status' },
-        leads_mes: { sqlId: 'sql-leads-mes', execId: 'exec-leads_mes', title: 'Total de Leads por Mês' },
-        leads_tipo: { sqlId: 'sql-leads-tipo', execId: 'exec-leads_tipo', title: 'Leads por Tipo' },
-        imob_sem_leads: { sqlId: 'sql-imob-sem-leads', execId: 'exec-imob_sem_leads', title: 'Imobiliárias sem Leads por Mês' },
+        leads_mes: { sqlId: 'sql-leads-mes', execId: 'exec-leads_mes', title: 'Total de cliques por mês' },
+        leads_tipo: { sqlId: 'sql-leads-tipo', execId: 'exec-leads_tipo', title: 'Cliques por tipo' },
+        imob_sem_leads: { sqlId: 'sql-imob-sem-leads', execId: 'exec-imob_sem_leads', title: 'Imobiliárias sem cliques de contato por mês' },
         imob_sem_leads_detalhe: { sqlId: 'sql-imob-sem-leads-detalhe', execId: 'exec-imob_sem_leads_detalhe', title: 'Imobiliárias sem cliques de contato — detalhe' },
         saude_base_mes: { sqlId: 'sql-saude-base-mes', execId: 'exec-saude_base_mes', title: 'Saúde da base por mês' },
         saude_conversao: { sqlId: 'sql-saude-conversao', execId: 'exec-saude_conversao', title: 'Conversão do site' },
@@ -9318,11 +9323,11 @@ WHERE newdata IS NOT NULL
         portal_cobertura: { sqlId: 'sql-portal-cobertura', execId: 'exec-portal_cobertura', title: 'Cobertura no Portal Loft' },
         portal_sem: { sqlId: 'sql-portal-sem', execId: 'exec-portal_sem', title: 'Imobiliárias com Site e Não Usam Portal Loft' },
         cms_sites_total: { sqlId: 'sql-cms-sites-total', execId: 'exec-cms_sites_total', title: 'Total de sites no CMS' },
-        tmpl_conversao: { sqlId: 'sql-tmpl-conversao', execId: 'exec-tmpl_conversao', title: 'Templates que mais convertem (leads por site ativo)' },
+        tmpl_conversao: { sqlId: 'sql-tmpl-conversao', execId: 'exec-tmpl_conversao', title: 'Templates que mais convertem (cliques por site ativo)' },
         imobs_com_publicados: { sqlId: 'sql-imobs-com-publicados', execId: 'exec-imobs_com_publicados', title: 'Imobiliárias com imóveis publicados' },
         imob_status_financeiro: { title: 'Situação financeira da base de imobiliárias' },
         imob_mes_atual: { title: 'Mês atual vs mesmo período do mês anterior' },
-        trafego_canais: { title: 'Leads por canal' },
+        trafego_canais: { title: 'Cliques por canal' },
         leads_crm_por_imob: { title: 'Média de leads por imobiliária' }
       };
 
@@ -14430,9 +14435,51 @@ WHERE newdata IS NOT NULL
         await refreshLastUpdatedText();
       }
 
+      // Freshness of the metrics in use, from the server snapshot: { oldest, newest, stale: [titles], missing: [titles] }.
+      var UPDATE_STATUS = null;
+
+      function dayKey(d) {
+        return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+      }
+
+      function computeUpdateStatus(metrics) {
+        var ids = usedMetricIds();
+        var dated = [];
+        var missing = [];
+        ids.forEach(function (id) {
+          var m = metrics[id];
+          var at = m && m.cachedAt ? new Date(m.cachedAt) : null;
+          if (at && !isNaN(at.getTime())) dated.push({ id: id, at: at });
+          else missing.push(METRIC_META[id].title);
+        });
+        if (!dated.length) return null;
+        dated.sort(function (a, b) { return a.at - b.at; });
+        var newest = dated[dated.length - 1].at;
+        var stale = dated.filter(function (d) { return dayKey(d.at) !== dayKey(newest); })
+          .map(function (d) { return METRIC_META[d.id].title + ' (' + formatUpdatedStamp(d.at) + ')'; });
+        return { oldest: dated[0].at, newest: newest, stale: stale, missing: missing };
+      }
+
       async function refreshLastUpdatedText() {
         var el = document.getElementById('lastUpdatedText');
         if (!el) return;
+        var st = UPDATE_STATUS;
+        if (st) {
+          var mixed = st.stale.length || st.missing.length;
+          el.classList.toggle('is-stale', !!mixed);
+          if (!mixed) {
+            el.textContent = 'Atualizado em ' + formatUpdatedStamp(st.newest);
+            el.title = 'Todas as métricas do painel são deste dia.';
+          } else {
+            var n = st.stale.length + st.missing.length;
+            el.textContent = '⚠ ' + n + (n === 1 ? ' métrica desatualizada' : ' métricas desatualizadas') + ' · mais recente em ' + formatUpdatedStamp(st.newest);
+            el.title = 'Rode Atualizar tudo para deixar o painel no mesmo dia.' +
+              (st.stale.length ? '\n\nDe outro dia:\n' + st.stale.join('\n') : '') +
+              (st.missing.length ? '\n\nNunca atualizadas:\n' + st.missing.join('\n') : '');
+          }
+          return;
+        }
+        el.classList.remove('is-stale');
         try {
           var res = await window.storage.get('last_updated_v2', false);
           if (res && res.value) { el.textContent = 'Atualizado em ' + res.value; return; }
@@ -14551,20 +14598,14 @@ WHERE newdata IS NOT NULL
           updateMinibar(i + 1, ids.length, meta.title);
         }
 
+        await reloadUpdateStatus();
         // re-renderiza todas as abas pra refletir os novos dados (metricas cruzam abas, ex. subtotais)
         var refreshedTabs = TABS;
         for (var t = 0; t < refreshedTabs.length; t++) {
           try { await renderTab(refreshedTabs[t].id); } catch (e) { console.error(e); }
         }
 
-        // The header stamp only means something when every metric was refreshed.
-        if (!errors.length && ids.length === usedMetricIds().length) {
-          var now = new Date();
-          setQueryAsOf(now);
-          var MN = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
-          var stamp = now.getDate() + ' ' + MN[now.getMonth()] + ' ' + now.getFullYear() + ' · ' + now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-          try { await window.storage.set('last_updated_v2', stamp, false); } catch (e) { }
-        }
+        // The header shows one date only when every metric in use is from the same day (see computeUpdateStatus).
         await refreshLastUpdatedText();
 
         if (errors.length) {
@@ -14889,10 +14930,28 @@ WHERE newdata IS NOT NULL
             var rows = metrics[ids[i]] && metrics[ids[i]].rows;
             if (Array.isArray(rows) && rows.length) await saveCard(ids[i], rows);
           }
-          if (data.updatedAt) {
-            setQueryAsOf(data.updatedAt);
-            try { await window.storage.set('last_updated_v2', formatUpdatedStamp(data.updatedAt), false); } catch (e) { }
-          }
+          applyUpdateStatus(metrics);
+        } catch (e) { }
+      }
+
+      function applyUpdateStatus(metrics) {
+        UPDATE_STATUS = computeUpdateStatus(metrics || {});
+        if (!UPDATE_STATUS) return;
+        // Month-to-date math uses the oldest date, so no card assumes more days than its data has.
+        setQueryAsOf(UPDATE_STATUS.oldest);
+        try { window.storage.set('last_updated_v2', formatUpdatedStamp(UPDATE_STATUS.newest), false); } catch (e) { }
+      }
+
+      // Re-reads only the per-metric dates after a refresh (the rows are already saved locally).
+      async function reloadUpdateStatus() {
+        try {
+          var token = existingGoogleAccessToken();
+          var headers = {};
+          if (token) headers.Authorization = 'Bearer ' + token;
+          var resp = await fetch(apiUrl('/api/bigquery?snapshot=1'), { headers: headers });
+          if (!resp.ok) return;
+          var data = await resp.json();
+          applyUpdateStatus((data && data.metrics) || {});
         } catch (e) { }
       }
 

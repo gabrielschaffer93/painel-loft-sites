@@ -6007,6 +6007,29 @@
       min-width: 920px;
     }
 
+    .action-table {
+      min-width: 760px;
+    }
+
+    .action-table .num {
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .action-sites {
+      display: inline-block;
+      max-width: 220px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      vertical-align: bottom;
+    }
+
+    .action-flag {
+      color: #B45309;
+      font-weight: 600;
+    }
+
     .sem-detail-table thead th {
       position: sticky;
       top: 0;
@@ -9321,7 +9344,9 @@ WHERE newdata IS NOT NULL
         imob_status_financeiro: { title: 'Situação financeira da base de imobiliárias' },
         imob_mes_atual: { title: 'Mês atual vs mesmo período do mês anterior' },
         trafego_canais: { title: 'Cliques por canal' },
-        leads_crm_por_imob: { title: 'Média de leads por imobiliária' }
+        leads_crm_por_imob: { title: 'Média de leads por imobiliária' },
+        imob_parou_leads: { title: 'Imobiliárias que pararam de receber leads' },
+        novos_sem_primeiro_lead: { title: 'Sites novos sem o primeiro lead' }
       };
 
       // Queries still in METRIC_META / backend, but no card calls loadCard() on them.
@@ -9584,19 +9609,22 @@ WHERE newdata IS NOT NULL
       // Every card is populated exclusively with BigQuery results. When a metric was
       // never fetched successfully, loadCard returns null and the card renders the
       // query error state instead of any placeholder value.
+      // Action lists: an empty result is a valid answer ("nobody on the list"), not a failed query.
+      var EMPTY_OK_METRICS = { imob_parou_leads: true, novos_sem_primeiro_lead: true };
+
       async function loadCard(id) {
         if (DATA[id]) return DATA[id];
         try {
           var res = await window.storage.get(storageKey(id), false);
           if (res && res.value) {
             var parsed = JSON.parse(res.value);
-            if (Array.isArray(parsed) && parsed.length) { DATA[id] = parsed; return DATA[id]; }
+            if (Array.isArray(parsed) && (parsed.length || EMPTY_OK_METRICS[id])) { DATA[id] = parsed; return DATA[id]; }
           }
         } catch (e) { }
         return null;
       }
       async function saveCard(id, rows) {
-        if (!Array.isArray(rows) || !rows.length) throw new Error('A query não retornou nenhuma linha.');
+        if (!Array.isArray(rows) || (!rows.length && !EMPTY_OK_METRICS[id])) throw new Error('A query não retornou nenhuma linha.');
         DATA[id] = rows;
         try { await window.storage.set(storageKey(id), JSON.stringify(rows), false); } catch (e) { }
       }
@@ -12127,6 +12155,73 @@ WHERE newdata IS NOT NULL
 
       // ---------- montagem das 4 abas ----------
 
+      // Action list table: columns are { label, cell(row) -> html, num }.
+      function actionTableHtml(rows, cols, emptyText) {
+        if (!rows) return queryErrorNote();
+        if (!rows.length) return '<div class="empty-note">' + emptyText + '</div>';
+        var head = '<tr>' + cols.map(function (c) { return '<th' + (c.num ? ' class="num"' : '') + '>' + c.label + '</th>'; }).join('') + '</tr>';
+        var body = rows.map(function (r) {
+          return '<tr>' + cols.map(function (c) { return '<td' + (c.num ? ' class="num"' : '') + '>' + c.cell(r) + '</td>'; }).join('') + '</tr>';
+        }).join('');
+        return '<div class="sem-detail-scroll"><table class="okr-table sem-detail-table action-table"><thead>' + head + '</thead><tbody>' + body + '</tbody></table></div>';
+      }
+
+      function actionNameCell(name, id) {
+        return '<span class="sem-detail-name">' + escapeText(name || '—') + '</span>' + (id ? '<span class="sem-detail-id">#' + escapeText(String(id)) + '</span>' : '');
+      }
+
+      function actionSitesCell(raw) {
+        var txt = String(raw || '').trim();
+        return txt ? '<span class="action-sites" title="' + escapeAttr(txt) + '">' + escapeText(txt) + '</span>' : '—';
+      }
+
+      function parouLeadsCardHtml(rows) {
+        var list = hasRows(rows) ? rows : (rows ? [] : null);
+        var total = list ? list.length : null;
+        return '<div class="panel-card">' +
+          cardHead('Imobiliárias que pararam de receber leads',
+            total == null ? 'Rode Atualizar tudo para carregar a lista' : fmtNum(total) + (total === 1 ? ' imobiliária recebia' : ' imobiliárias recebiam') + ' leads no CRM e não recebem nenhum desde o início do último mês fechado',
+            ['imob_parou_leads'], [
+              { label: 'Quem entra', formula: 'imobiliária com lead no CRM em pelo menos 2 dos 3 meses antes do último mês fechado, e 0 lead do início do último mês fechado até hoje' },
+              { label: 'Ordem', formula: 'quem mais recebia leads antes aparece primeiro' },
+              { label: 'Fora da lista', formula: 'imobiliárias cuja base de CRM não está nas tabelas de dados nunca tiveram lead aqui, então não viram falso alarme' }
+            ]) +
+          actionTableHtml(list, [
+            { label: 'Imobiliária', cell: function (r) { return actionNameCell(r[1], r[0]); } },
+            { label: 'Status financeiro', cell: function (r) { return escapeText(r[2] || '—'); } },
+            { label: 'Site', cell: function (r) { return actionSitesCell(r[3]); } },
+            { label: 'Leads nos 3 meses antes', num: true, cell: function (r) { return fmtNum(cellNum(r, 4)); } },
+            { label: 'Média por mês', num: true, cell: function (r) { return fmtDec1(cellNum(r, 5)); } },
+            { label: 'Último lead', cell: function (r) { return fmtDateBr(r[6]); } }
+          ], 'Nenhuma imobiliária parou de receber leads.') +
+          '</div>';
+      }
+
+      function novosSemLeadCardHtml(rows) {
+        var list = hasRows(rows) ? rows : (rows ? [] : null);
+        var semCrm = list ? list.filter(function (r) { return String(r[7]) !== 'true'; }).length : 0;
+        var sub = list == null
+          ? 'Rode Atualizar tudo para carregar a lista'
+          : fmtNum(list.length) + (list.length === 1 ? ' site criado' : ' sites criados') + ' nos últimos 90 dias sem nenhum lead no CRM' +
+            (semCrm ? ' · ' + fmtNum(semCrm) + ' com a base de CRM fora dos dados (não é problema do site)' : '');
+        return '<div class="panel-card">' +
+          cardHead('Sites novos sem o primeiro lead', sub, ['novos_sem_primeiro_lead'], [
+            { label: 'Quem entra', formula: 'imobiliária ativa com site criado nos últimos 90 dias e nenhum lead no CRM desde a criação' },
+            { label: 'Acesso e cliques', formula: 'pageviews e cliques de contato no site desde a criação: sem acesso pede divulgação; com cliques e sem lead pede checar o CRM' },
+            { label: 'CRM nos dados', formula: 'Não = a base de CRM da imobiliária não está nas tabelas de dados, então o lead pode existir e não aparecer' }
+          ]) +
+          actionTableHtml(list, [
+            { label: 'Imobiliária', cell: function (r) { return actionNameCell(r[1], r[0]); } },
+            { label: 'Site', cell: function (r) { return actionSitesCell(r[2]); } },
+            { label: 'Criado em', cell: function (r) { return fmtDateBr(r[3]); } },
+            { label: 'Dias no ar', num: true, cell: function (r) { return fmtNum(cellNum(r, 4)); } },
+            { label: 'Pageviews', num: true, cell: function (r) { return fmtNum(cellNum(r, 5)); } },
+            { label: 'Cliques de contato', num: true, cell: function (r) { return fmtNum(cellNum(r, 6)); } },
+            { label: 'CRM nos dados', cell: function (r) { return String(r[7]) === 'true' ? 'Sim' : '<span class="action-flag">Não</span>'; } }
+          ], 'Todos os sites novos já receberam o primeiro lead.') +
+          '</div>';
+      }
+
       async function buildImobiliariasTab() {
         var subtotais = await loadCard('subtotais');
         var tmpl = await loadCard('template');
@@ -12137,6 +12232,8 @@ WHERE newdata IS NOT NULL
         var portalCobertura = await loadCard('portal_cobertura');
         var pubImob = await loadCard('imobs_com_publicados');
         var mes = parseMesAtual(await loadCard('imob_mes_atual'));
+        var parouLeads = await loadCard('imob_parou_leads');
+        var novosSemLead = await loadCard('novos_sem_primeiro_lead');
 
         var totalImob = hasRows(subtotais) ? cellNum(subtotais[0], 0) : null;
 
@@ -12361,7 +12458,10 @@ WHERE newdata IS NOT NULL
           questionHeadHtml(2, 'A base está ativa?') +
           activationKpis + semLeadsRow + semLeadsDetailCardHtml(semLeadsMes, semLeadsDetalhe) +
           questionHeadHtml(3, 'Estamos levando a base para onde queremos?', 'Posição de hoje') +
-          directionKpis + directionRow;
+          directionKpis + directionRow +
+          questionHeadHtml(4, 'Quem precisa de contato?', 'Listas de ação com base nos leads entregues no CRM') +
+          parouLeadsCardHtml(parouLeads) +
+          novosSemLeadCardHtml(novosSemLead);
       }
 
       function detalhePorSiteStatsHtml(items, daysByMonth) {
@@ -14480,7 +14580,7 @@ WHERE newdata IS NOT NULL
           var ids = Object.keys(metrics);
           for (var i = 0; i < ids.length; i++) {
             var rows = metrics[ids[i]] && metrics[ids[i]].rows;
-            if (Array.isArray(rows) && rows.length) await saveCard(ids[i], rows);
+            if (Array.isArray(rows) && (rows.length || EMPTY_OK_METRICS[ids[i]])) await saveCard(ids[i], rows);
           }
           applyUpdateStatus(metrics);
         } catch (e) { }

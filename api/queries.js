@@ -570,6 +570,111 @@ GROUP BY mes
 ORDER BY mes`,
 
   // Chart: Cadastrados no CRM
+  // Agencies that received CRM leads in at least 2 of the 3 months before the last closed month
+  // and none since the start of the last closed month. Agencies whose CRM base is missing never
+  // had leads here, so they don't show up as false alarms.
+  imob_parou_leads: `WITH ${CRM_SITE_LEADS},
+ref AS (
+    SELECT DATE_TRUNC(DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH), MONTH) AS ultimo_fechado
+),
+por_mes AS (
+    SELECT l.id_imobiliaria, DATE_TRUNC(l.data_cadastro, MONTH) AS mes, COUNT(*) AS leads, MAX(l.data_cadastro) AS ultimo_lead
+    FROM leads_site_crm AS l
+    CROSS JOIN ref
+    WHERE l.data_cadastro >= DATE_SUB(ref.ultimo_fechado, INTERVAL 3 MONTH)
+      AND l.data_cadastro <= CURRENT_DATE()
+    GROUP BY l.id_imobiliaria, mes
+),
+resumo AS (
+    SELECT
+        p.id_imobiliaria,
+        SUM(IF(p.mes < ref.ultimo_fechado, p.leads, 0)) AS leads_3_meses_antes,
+        COUNTIF(p.mes < ref.ultimo_fechado) AS meses_com_lead_antes,
+        SUM(IF(p.mes >= ref.ultimo_fechado, p.leads, 0)) AS leads_desde_entao,
+        MAX(p.ultimo_lead) AS ultimo_lead
+    FROM por_mes AS p
+    CROSS JOIN ref
+    GROUP BY p.id_imobiliaria
+),
+cliente AS (
+    SELECT id_cliente, ANY_VALUE(nome_cliente) AS nome_cliente, ANY_VALUE(status_financeiro) AS status_financeiro
+    FROM \`loft-dl-marketplace.silver_product_vista.clientes\`
+    GROUP BY id_cliente
+),
+site AS (
+    SELECT id_cliente, STRING_AGG(DISTINCT hostname, ', ') AS sites
+    FROM \`loft-dl-marketplace.gold_loft_sites.sites_imobiliarias\`
+    WHERE hostname IS NOT NULL AND data_exclusao IS NULL
+    GROUP BY id_cliente
+)
+SELECT
+    r.id_imobiliaria,
+    c.nome_cliente,
+    c.status_financeiro,
+    s.sites,
+    r.leads_3_meses_antes,
+    ROUND(r.leads_3_meses_antes / 3, 1) AS media_mensal_antes,
+    r.ultimo_lead
+FROM resumo AS r
+LEFT JOIN cliente AS c ON c.id_cliente = r.id_imobiliaria
+LEFT JOIN site AS s ON s.id_cliente = r.id_imobiliaria
+WHERE r.meses_com_lead_antes >= 2
+  AND r.leads_desde_entao = 0
+ORDER BY r.leads_3_meses_antes DESC`,
+
+  // Sites created in the last 90 days whose agency has no CRM lead since the site went live.
+  // crm_disponivel = false means the agency's CRM base is not in the staging tables (data gap, not a site problem).
+  novos_sem_primeiro_lead: `WITH ${CRM_SITE_LEADS},
+novos AS (
+    SELECT
+        s.id_cliente,
+        ANY_VALUE(s.id_database) AS id_database,
+        ANY_VALUE(s.nome_cliente) AS nome_cliente,
+        STRING_AGG(DISTINCT s.hostname, ', ') AS sites,
+        MIN(s.data_criacao) AS data_criacao
+    FROM \`loft-dl-marketplace.gold_loft_sites.sites_imobiliarias\` AS s
+    INNER JOIN imobiliarias_feature_ativa AS f ON f.id_cliente = s.id_cliente
+    WHERE s.data_criacao >= DATE_SUB(CURRENT_DATE(), INTERVAL 90 DAY)
+      AND s.data_exclusao IS NULL
+    GROUP BY s.id_cliente
+),
+com_lead AS (
+    SELECT l.id_imobiliaria
+    FROM leads_site_crm AS l
+    INNER JOIN novos AS n ON n.id_cliente = l.id_imobiliaria AND l.data_cadastro >= n.data_criacao
+    GROUP BY l.id_imobiliaria
+),
+bases_crm AS (
+    SELECT DISTINCT id_database
+    FROM \`loft-dl-marketplace.staging.stg_union_all_crm_daily__agencias\`
+),
+uso AS (
+    SELECT
+        e.id_cliente,
+        COUNTIF(e.nome_evento = 'pageview') AS pageviews,
+        COUNTIF(e.tipo_evento IN (${LEAD_EVENTOS})) AS cliques_contato
+    FROM \`loft-dl-marketplace.gold_loft_sites.sites_eventos_gtm\` AS e
+    INNER JOIN novos AS n ON n.id_cliente = e.id_cliente
+    WHERE e.data_ref >= DATE_SUB(CURRENT_DATE(), INTERVAL 90 DAY)
+      AND e.data_ref >= n.data_criacao
+    GROUP BY e.id_cliente
+)
+SELECT
+    n.id_cliente,
+    n.nome_cliente,
+    n.sites,
+    n.data_criacao,
+    DATE_DIFF(CURRENT_DATE(), n.data_criacao, DAY) AS dias_no_ar,
+    COALESCE(u.pageviews, 0) AS pageviews,
+    COALESCE(u.cliques_contato, 0) AS cliques_contato,
+    b.id_database IS NOT NULL AS crm_disponivel
+FROM novos AS n
+LEFT JOIN com_lead AS cl ON cl.id_imobiliaria = n.id_cliente
+LEFT JOIN uso AS u ON u.id_cliente = n.id_cliente
+LEFT JOIN bases_crm AS b ON b.id_database = n.id_database
+WHERE cl.id_imobiliaria IS NULL
+ORDER BY dias_no_ar DESC`,
+
   leads_crm: `WITH ${CRM_SITE_LEADS}
 SELECT
     COUNT(*) AS total_leads_crm

@@ -5,6 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Painel de Dashboard — Loft Sites</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@300;400;500;600;700;800&display=swap');
 
@@ -28,13 +29,13 @@
       justify-content: center;
       align-items: flex-start;
       background: #F7F3EF;
-      overflow-x: hidden;
+      overflow-x: auto;
       overflow-y: auto;
     }
 
     .page-inner-wrap {
-      width: 85vw;
-      min-width: 900px;
+      width: min(1600px, 100%);
+      min-width: 0;
       max-width: 1600px;
       min-height: 100vh;
     }
@@ -67,7 +68,7 @@
       --col2-w: 40px;
       --col2-gap: 6px;
       /* Real width of .page-inner-wrap; the full-width header aligns its content to it. */
-      --wrap-w: clamp(900px, 85vw, 1600px);
+      --wrap-w: min(1600px, 100%);
       /* 100vw counts the scrollbar of .page-outer-wrap; --sbw is measured in JS. */
       --vw-inner: calc(100vw - var(--sbw, 0px));
       --chrome-pad: max(var(--page-pad), calc((var(--vw-inner) - var(--wrap-w)) / 2 + var(--page-pad)));
@@ -468,7 +469,7 @@
       justify-content: space-between;
       background: var(--card);
       border-bottom: 1px solid var(--border);
-      flex-wrap: nowrap;
+      flex-wrap: wrap;
       gap: 8px;
       width: 100%;
       margin-left: 0;
@@ -1063,6 +1064,10 @@
       border-radius: 3px;
     }
 
+    .onboarding-card {
+      margin-bottom: 12px;
+    }
+
     /* ---------- Channel ranking (Tráfego) ---------- */
     .ch-ranking {
       position: relative;
@@ -1160,6 +1165,32 @@
       margin: 0;
     }
     .dash-hero-desc strong { color: var(--ink); font-weight: 600; }
+    .dash-hero-delta {
+      display: inline-block; padding: 0 7px; border-radius: 999px;
+      font-size: 12px; font-weight: 700; line-height: 20px; white-space: nowrap;
+    }
+    .dash-hero-delta.good { color: var(--good); background: var(--good-soft); }
+    .dash-hero-delta.bad { color: var(--bad); background: var(--bad-soft); }
+    .dash-hero-story { display: flex; flex-direction: column; }
+    .dash-hero-story-row {
+      display: grid; grid-template-columns: 118px 1fr; gap: 12px; align-items: baseline;
+      padding: 9px 0; border-top: 1px solid rgba(200, 180, 170, 0.35);
+    }
+    .dash-hero-story-row:first-child { border-top: 0; padding-top: 2px; }
+    .dash-hero-story-kicker {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+      color: var(--ink-faint);
+    }
+    .dash-hero-story-kicker::before {
+      content: ''; width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; background: currentColor;
+    }
+    .dash-hero-story-row.base .dash-hero-story-kicker { color: var(--ink-soft); }
+    .dash-hero-story-row.perf .dash-hero-story-kicker { color: var(--laranja); }
+    .dash-hero-story-row.bad .dash-hero-story-kicker { color: var(--bad); }
+    .dash-hero-story-row.good .dash-hero-story-kicker { color: var(--good); }
+    .dash-hero-story-text { font-size: 13.5px; color: var(--ink-soft); line-height: 1.6; }
+    .dash-hero-story-text strong { color: var(--ink); font-weight: 650; }
     .dash-hero-right {
       display: flex; flex-direction: row; gap: 10px; align-items: stretch;
     }
@@ -1173,7 +1204,26 @@
     .dash-hero-card-label {
       font-size: 10.5px; font-weight: 700; text-transform: uppercase;
       letter-spacing: 0.06em; margin-bottom: 12px; display: flex;
-      align-items: center; gap: 6px;
+      align-items: center; gap: 6px; width: 100%;
+    }
+    .dash-hero-edit {
+      margin-left: auto;
+      width: 22px; height: 22px; padding: 0;
+      border: 0; border-radius: 6px; background: transparent;
+      color: inherit; cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center;
+      text-transform: none;
+    }
+    .dash-hero-edit:hover { background: rgba(18, 22, 25, 0.06); }
+    .dash-hero-rich { font-size: 12.5px; color: var(--ink-soft); line-height: 1.5; }
+    .dash-hero-rich p { margin: 0 0 8px; }
+    .dash-hero-rich p:last-child { margin-bottom: 0; }
+    .dash-hero-rich ul, .dash-hero-rich ol { margin: 0; padding-left: 16px; }
+    .dash-hero-rich li { margin: 0 0 6px; }
+    .dash-hero-rich li:last-child { margin-bottom: 0; }
+    .dash-hero-rich strong, .dash-hero-rich b { color: var(--ink); font-weight: 600; }
+    .dash-hero-rich h2, .dash-hero-rich h3 {
+      margin: 0 0 6px; font-size: 13px; color: var(--ink); font-weight: 700;
     }
     .dash-hero-card-label.metricas { color: var(--verde); }
     .dash-hero-card-label.atencao  { color: #C4420A; }
@@ -1345,6 +1395,45 @@
     .pm-metas-row .pace-card-foot strong {
       color: var(--ink);
       font-weight: 700;
+    }
+
+    .pm-metas-row .pace-card-note {
+      margin-top: 10px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--ink);
+      line-height: 1.4;
+    }
+
+    .pm-metas-row .kpi-pill {
+      position: relative;
+      cursor: help;
+      font-weight: 700;
+    }
+
+    .pm-metas-row .kpi-pill.neutral {
+      background: #EEF1F4;
+      color: var(--ink-soft);
+    }
+
+    .pm-metas-row .kpi-pill[data-tip]:hover::after,
+    .pm-metas-row .kpi-pill[data-tip]:focus::after {
+      content: attr(data-tip);
+      position: absolute;
+      right: 0;
+      top: calc(100% + 8px);
+      z-index: 40;
+      width: min(320px, 72vw);
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: #142722;
+      color: #F7F3EF;
+      font-size: 11.5px;
+      font-weight: 500;
+      line-height: 1.45;
+      white-space: pre-line;
+      text-align: left;
+      box-shadow: 0 10px 24px rgba(20, 39, 34, 0.22);
     }
 
     /* ---------- Principais Métricas: Grid & Header ---------- */
@@ -1675,6 +1764,13 @@
       font-weight: 700;
     }
 
+    .pm-sub-base {
+      margin-left: 4px;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--ink-faint);
+    }
+
     /* Pending card content */
     .pm-pending-body {
       margin: 8px 0 4px;
@@ -1787,7 +1883,7 @@
     }
 
     .pm-bar-col:hover .pm-bar-fill {
-      background: linear-gradient(180deg, #CDD2D5 0%, #BEC4C8 100%);
+      background: linear-gradient(180deg, #FFC4A8 0%, var(--laranja-claro) 100%);
     }
 
     /* Current Bar */
@@ -3149,7 +3245,7 @@
     .ts-plot {
       position: relative;
       height: 118px;
-      overflow: visible;
+      overflow: hidden;
     }
 
     .ts-grid-line {
@@ -3222,6 +3318,8 @@
       font-size: 10px;
       color: var(--ink-soft);
       min-width: 0;
+      overflow-wrap: anywhere;
+      line-height: 1.15;
     }
 
     .line-chart-svg {
@@ -3245,8 +3343,24 @@
       left: 50%;
       transform: translateX(-50%);
       margin-bottom: 0;
+      max-width: calc(100% + 8px);
+      overflow: hidden;
+      text-overflow: ellipsis;
       white-space: nowrap;
       pointer-events: none;
+    }
+
+    .line-chart-col:first-child .ts-bar-val {
+      left: 0;
+      transform: none;
+      text-align: left;
+    }
+
+    .line-chart-col:last-child .ts-bar-val {
+      left: auto;
+      right: 0;
+      transform: none;
+      text-align: right;
     }
 
     .ts-line-hit {
@@ -3286,6 +3400,78 @@
       font-size: 11px;
       font-weight: 700;
       color: var(--ink);
+    }
+
+    .ts-bar-label-sub {
+      display: block;
+      margin-top: 2px;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--ink-soft);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .csat-split {
+      grid-template-columns: minmax(0, 1fr) minmax(220px, 280px);
+      align-items: stretch;
+    }
+
+    .csat-gauge {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 4px 4px 2px;
+    }
+
+    .csat-gauge-visual {
+      position: relative;
+      width: min(100%, 220px);
+    }
+
+    .csat-gauge-svg {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .csat-gauge-readout {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 22px;
+      text-align: center;
+      pointer-events: none;
+    }
+
+    .csat-gauge-score {
+      font-size: 42px;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      line-height: 1;
+      color: var(--ink);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .csat-gauge-label {
+      margin-top: 4px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--ink-soft);
+    }
+
+    .csat-gauge-foot {
+      margin-top: 14px;
+      text-align: center;
+      font-size: 13.5px;
+      line-height: 1.35;
+      color: var(--ink-soft);
+    }
+
+    .csat-gauge-foot strong {
+      color: #1E3A5F;
+      font-weight: 700;
     }
 
     .combo-legend {
@@ -6430,6 +6616,91 @@
       font-size: 14px;
     }
 
+    .cf-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin: 0 0 12px;
+    }
+
+    .cf-filters label {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--ink-soft);
+    }
+
+    .cf-filters select {
+      font: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ink);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 10px;
+      min-width: 200px;
+    }
+
+    .cf-funnel {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .cf-step {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(150px, 210px);
+      gap: 12px;
+      align-items: center;
+    }
+
+    .cf-bar {
+      min-height: 48px;
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      color: #fff;
+      font-size: 18px;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      background: var(--laranja);
+    }
+
+    .cf-step:nth-child(2) .cf-bar { background: #FF9A6E; }
+    .cf-step:nth-child(3) .cf-bar { background: var(--laranja-claro); color: var(--ink); }
+
+    .cf-name {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .cf-pct {
+      margin-top: 2px;
+      font-size: 12px;
+      color: var(--ink-soft);
+      line-height: 1.35;
+    }
+
+    .cf-hero {
+      font-size: 40px;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .cf-hero-sub {
+      margin-top: 8px;
+      font-size: 13px;
+      color: var(--ink-soft);
+      line-height: 1.4;
+    }
+
     /* table */
     table.okr-table {
       width: 100%;
@@ -6637,6 +6908,36 @@
     .query-modal .sql-box pre {
       max-height: min(48vh, 420px);
     }
+
+    .narrative-modal { width: min(720px, 94vw); }
+    .narrative-toolbar {
+      display: flex; flex-wrap: wrap; gap: 6px;
+      padding: 12px 20px 0;
+    }
+    .narrative-tool {
+      appearance: none; border: 1px solid var(--border); background: #fff;
+      color: var(--ink); border-radius: 8px; padding: 6px 10px;
+      font-family: var(--sans); font-size: 12px; font-weight: 700; cursor: pointer;
+    }
+    .narrative-tool.is-active { background: #121619; color: #fff; border-color: #121619; }
+    .narrative-editor {
+      border: 1px solid var(--border); border-radius: 10px;
+      padding: 12px 14px; min-height: 200px; background: #fff;
+    }
+    .narrative-editor .ProseMirror { outline: none; min-height: 176px; font-size: 14px; line-height: 1.55; color: #121619; }
+    .narrative-editor .ProseMirror p { margin: 0 0 8px; }
+    .narrative-editor .ProseMirror ul, .narrative-editor .ProseMirror ol { margin: 0 0 8px; padding-left: 1.25em; }
+    .narrative-editor .ProseMirror h2, .narrative-editor .ProseMirror h3 { margin: 0 0 8px; font-size: 16px; }
+    .narrative-editor .ProseMirror p.is-editor-empty:first-child::before {
+      content: attr(data-placeholder); color: #8D8D8D; float: left; height: 0; pointer-events: none;
+    }
+    .narrative-foot {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 12px 20px 16px; border-top: 1px solid var(--border);
+    }
+    .narrative-hint { font-size: 12px; color: var(--ink-soft); }
+    .narrative-actions { display: flex; gap: 8px; }
+    .narrative-error { margin-top: 8px; font-size: 12px; color: #DA1E28; min-height: 16px; }
 
     .confirm-overlay {
       position: fixed;
@@ -7352,6 +7653,74 @@
       padding: 8px 20px 30px 20px;
       flex-shrink: 0;
     }
+
+    .panel-card,
+    .pm-card,
+    .ts-chart,
+    .kpi-box {
+      min-width: 0;
+      max-width: 100%;
+    }
+
+    .sem-detail-scroll,
+    .table-scroll {
+      max-width: 100%;
+      overflow-x: auto;
+    }
+
+    @media (max-width: 1180px) {
+      .row-2col,
+      .row-2col.even,
+      .row-2col.cols-8-4,
+      .row-2col.cols-status,
+      .row-2col.split-cards,
+      .csat-split,
+      .imob-grid,
+      .trafego-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .imob-grid {
+        grid-template-areas:
+          "novas"
+          "meta"
+          "tmpl";
+      }
+
+      .trafego-grid {
+        grid-template-areas:
+          "pages"
+          "sources";
+      }
+
+      .app-meta-col {
+        align-items: flex-start;
+        max-width: 100%;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .kpi-row,
+      .kpi-row.cols-3,
+      .kpi-row.cols-5,
+      .row-3col,
+      .tmpl-rank-list {
+        grid-template-columns: 1fr;
+      }
+
+      .tabs-left {
+        gap: 14px;
+      }
+
+      .ts-chart {
+        padding-left: 28px;
+      }
+
+      .line-chart-months .ts-bar-label,
+      .ts-bar-label {
+        font-size: 9px;
+      }
+    }
   </style>
 </head>
 
@@ -7531,6 +7900,35 @@
               </div>
               <div class="loading-msg">Aguarde enquanto atualizamos os dados do painel.</div>
               <div class="checklist" id="loadingChecklist"></div>
+            </div>
+          </div>
+
+          <div class="query-overlay" id="narrativeOverlay">
+            <div class="query-modal narrative-modal" role="dialog" aria-modal="true" aria-labelledby="narrativeModalTitle">
+              <div class="query-modal-head">
+                <div>
+                  <div class="query-modal-kicker">Editar texto</div>
+                  <div class="query-modal-title" id="narrativeModalTitle"></div>
+                </div>
+                <button type="button" class="query-modal-close" id="narrativeModalClose" title="Fechar" aria-label="Fechar">×</button>
+              </div>
+              <div class="narrative-toolbar" id="narrativeToolbar">
+                <button type="button" class="narrative-tool" data-narr-cmd="bold">Negrito</button>
+                <button type="button" class="narrative-tool" data-narr-cmd="italic">Itálico</button>
+                <button type="button" class="narrative-tool" data-narr-cmd="bullet">Lista</button>
+                <button type="button" class="narrative-tool" data-narr-cmd="ordered">Lista numerada</button>
+              </div>
+              <div class="query-modal-body">
+                <div class="narrative-editor" id="narrativeEditor"></div>
+                <div class="narrative-error" id="narrativeError"></div>
+              </div>
+              <div class="narrative-foot">
+                <div class="narrative-hint">Salvar vazio restaura o texto automático. O texto fica visível para todos.</div>
+                <div class="narrative-actions">
+                  <button type="button" class="confirm-btn confirm-btn-cancel" id="narrativeCancel">Cancelar</button>
+                  <button type="button" class="confirm-btn confirm-btn-ok" id="narrativeSave">Salvar</button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -9255,6 +9653,12 @@ WHERE newdata IS NOT NULL
 </script>
 
 
+  <script type="module">
+    import { Editor } from 'https://esm.sh/@tiptap/core@2.11.5';
+    import StarterKit from 'https://esm.sh/@tiptap/starter-kit@2.11.5';
+    window.LoftTipTap = { Editor: Editor, StarterKit: StarterKit };
+    window.dispatchEvent(new Event('loft-tiptap-ready'));
+  </script>
   <script>
     // Adaptador de storage: mantem a mesma interface usada pelo painel,
     // mas grava no localStorage do navegador (funciona em qualquer hospedagem).
@@ -9327,6 +9731,11 @@ WHERE newdata IS NOT NULL
         leads_crm_mes: { sqlId: 'sql-leads-crm-mes', execId: 'exec-leads_crm_mes', title: 'Cadastrados no CRM por mês' },
         leads_crm_status: { sqlId: 'sql-leads-crm-status', execId: 'exec-leads_crm_status', title: 'Cadastrados no CRM por status' },
         leads_mes: { sqlId: 'sql-leads-mes', execId: 'exec-leads_mes', title: 'Total de cliques por mês' },
+        visitantes_contato: { title: 'Visitantes que entram em contato' },
+        conv_usuarios_mes: { title: 'Visitantes e cliques de contato por mês' },
+        publicados_meta_mes: { title: 'Sites com imóveis publicados por mês' },
+        template_meta_mes: { title: 'Sites em template Avançado por mês' },
+        imob_clique_trimestre: { title: 'Imobiliárias da base com clique de contato no trimestre' },
         leads_tipo: { sqlId: 'sql-leads-tipo', execId: 'exec-leads_tipo', title: 'Cliques por tipo' },
         imob_sem_leads: { sqlId: 'sql-imob-sem-leads', execId: 'exec-imob_sem_leads', title: 'Imobiliárias sem cliques de contato por mês' },
         imob_sem_leads_detalhe: { sqlId: 'sql-imob-sem-leads-detalhe', execId: 'exec-imob_sem_leads_detalhe', title: 'Imobiliárias sem cliques de contato — detalhe' },
@@ -9350,11 +9759,14 @@ WHERE newdata IS NOT NULL
         trafego_canais: { title: 'Cliques por canal' },
         leads_crm_por_imob: { title: 'Média de leads por imobiliária' },
         imob_parou_leads: { title: 'Imobiliárias que pararam de receber leads' },
-        novos_sem_primeiro_lead: { title: 'Sites novos sem o primeiro lead' }
+        novos_sem_primeiro_lead: { title: 'Sites novos sem o primeiro lead' },
+        csat_mes: { title: 'Nota de satisfação por mês' },
+        onboarding_mes: { title: 'Onboardings concluídos por mês' },
+        corretor_funil: { title: 'Funil da página do corretor' }
       };
 
       // Queries still in METRIC_META / backend, but no card calls loadCard() on them.
-      var UNUSED_METRICS = { portal_sem: true, cms_sites_total: true, publicados_venda_2026: true, portal_com_count: true, tmpl_conversao: true, total_leads: true };
+      var UNUSED_METRICS = { portal_sem: true, cms_sites_total: true, publicados_venda_2026: true, portal_com_count: true, tmpl_conversao: true, total_leads: true, imob_sem_leads_detalhe: true, imob_parou_leads: true, novos_sem_primeiro_lead: true };
 
       function usedMetricIds() {
         return Object.keys(METRIC_META).filter(function (id) { return !UNUSED_METRICS[id]; });
@@ -9602,7 +10014,8 @@ WHERE newdata IS NOT NULL
         if (id === 'leads_tipo') return 'metric_' + id + '_v3';
         if (id === 'leads_crm_status') return 'metric_' + id + '_v2';
         if (id === 'imoveis_publicados' || id === 'publicados_venda_2026') return 'metric_' + id + '_v5';
-        if (id === 'views_composicao') return 'metric_' + id + '_v9';
+        if (id === 'views_composicao') return 'metric_' + id + '_v10';
+        if (id === 'csat_mes') return 'metric_' + id + '_v3';
         if (id === 'subtotais' || id === 'portal_com' || id === 'portal_com_count' || id === 'portal_cobertura' || id === 'portal_sem') return 'metric_' + id + '_v4';
         if (id === 'tmpl_conversao') return 'metric_' + id + '_v4';
         return 'metric_' + id + '_v2';
@@ -9758,12 +10171,15 @@ WHERE newdata IS NOT NULL
             '" style="bottom:' + Math.max(p.ypx - 4.5, 0).toFixed(1) + 'px;border-color:' + color +
             ';background:' + (isPartialPt ? '#fff' : color) + '" data-month="' + p.label + (isPartialPt ? ' (parcial)' : '') +
             '" data-month-iso="' + p.iso + '" data-tip="' +
-            encodeURIComponent(tipValue(p.v)) + '"></div>' +
+            encodeURIComponent(tipValue(p.v) + (typeof opts.tipExtra === 'function' ? (opts.tipExtra(rows[i], p) || '') : '')) + '"></div>' +
             '</div>';
         }).join('');
 
-        var labels = points.map(function (p) {
-          return '<div class="ts-bar-label">' + p.label + '</div>';
+        var labels = points.map(function (p, i) {
+          var extra = typeof opts.labelExtra === 'function' ? opts.labelExtra(rows[i], p) : '';
+          return '<div class="ts-bar-label">' + p.label +
+            (extra ? '<span class="ts-bar-label-sub">' + extra + '</span>' : '') +
+            '</div>';
         }).join('');
 
         return '<div class="ts-chart pvm-chart-wrap pvm-tip-light">' +
@@ -9772,6 +10188,54 @@ WHERE newdata IS NOT NULL
           '<div class="pvm-tooltip"></div>' +
           '</div>' +
           (footerText ? '<div class="footnote">' + footerText + '</div>' : '');
+      }
+
+      // 0–5 score bands for the satisfaction gauge. 3.0–3.9 reads "Precisa melhorar".
+      function csatScoreLabel(score) {
+        if (score >= 4.5) return 'Excelente';
+        if (score >= 4) return 'Bom';
+        if (score >= 3) return 'Precisa melhorar';
+        if (score >= 2) return 'Ruim';
+        return 'Crítico';
+      }
+
+      function csatArcPoint(cx, cy, r, degFromLeft) {
+        var rad = Math.PI * (1 - degFromLeft / 180);
+        return { x: cx + r * Math.cos(rad), y: cy - r * Math.sin(rad) };
+      }
+
+      function csatArcPath(cx, cy, r, deg) {
+        var span = Math.max(0, Math.min(180, deg));
+        if (span <= 0) return '';
+        var start = csatArcPoint(cx, cy, r, 0);
+        var end = csatArcPoint(cx, cy, r, span);
+        return 'M ' + start.x.toFixed(2) + ' ' + start.y.toFixed(2) +
+          ' A ' + r + ' ' + r + ' 0 0 1 ' + end.x.toFixed(2) + ' ' + end.y.toFixed(2);
+      }
+
+      function csatGaugeHtml(row) {
+        if (!row) return queryErrorNote();
+        var score = cellNum(row, 1);
+        var responses = cellNum(row, 2);
+        var satisfied = cellNum(row, 3);
+        var pctSatisfied = responses ? Math.round(satisfied / responses * 100) : 0;
+        var cx = 100;
+        var cy = 108;
+        var r = 78;
+        var track = csatArcPath(cx, cy, r, 180);
+        var fill = csatArcPath(cx, cy, r, score / 5 * 180);
+        return '<div class="csat-gauge">' +
+          '<div class="csat-gauge-visual">' +
+          '<svg class="csat-gauge-svg" viewBox="0 0 200 124" aria-hidden="true">' +
+          '<path d="' + track + '" fill="none" stroke="#E6E2D8" stroke-width="16" stroke-linecap="round"/>' +
+          (fill ? '<path d="' + fill + '" fill="none" stroke="#F5B400" stroke-width="16" stroke-linecap="round"/>' : '') +
+          '</svg>' +
+          '<div class="csat-gauge-readout">' +
+          '<div class="csat-gauge-score">' + formatPlainDecimal(score, 1, true) + '</div>' +
+          '<div class="csat-gauge-label">' + csatScoreLabel(score) + '</div>' +
+          '</div></div>' +
+          '<div class="csat-gauge-foot"><strong>' + pctSatisfied + '% satisfeitos</strong> · ' + fmtNum(responses) + ' respostas</div>' +
+          '</div>';
       }
 
       function viewsComposicaoSeries() {
@@ -11018,12 +11482,13 @@ WHERE newdata IS NOT NULL
         return '<div class="pace-card">' +
           '<div class="pace-card-top">' +
           '<div class="pace-card-title">' + titleHtml + '</div>' +
-          '<span class="kpi-pill ' + opts.tone + '">' + pill + '</span>' +
+          '<span class="kpi-pill ' + opts.tone + '"' + (opts.pillTip ? ' data-tip="' + escapeAttr(opts.pillTip) + '"' : '') + '>' + pill + '</span>' +
           '</div>' +
           '<div class="pace-card-cols">' + cols + '</div>' +
           '<div class="pace-card-track" role="progressbar" aria-valuemin="0" aria-valuemax="' + max + '" aria-valuenow="' + current + '">' +
           '<div class="pace-card-fill" style="width:' + pctVal.toFixed(1) + '%"></div>' +
           '</div>' +
+          (opts.note ? '<div class="pace-card-note">' + opts.note + '</div>' : '') +
           '<div class="pace-card-foot">' +
           '<span>' + (opts.footLeft || '') + '</span>' +
           '<span>' + (opts.footRight || '') + '</span>' +
@@ -11176,7 +11641,7 @@ WHERE newdata IS NOT NULL
       }
 
       // Headline is the last closed month: a partial month is inflated until leads arrive.
-      function semLeadsClosedStatsHtml(semRows, detailRows) {
+      function semLeadsClosedStatsHtml(semRows) {
         var last = lastClosedMonthRow(semRows);
         if (!last) return queryErrorNote();
         var prev = prevClosedMonthRow(semRows);
@@ -11205,21 +11670,11 @@ WHERE newdata IS NOT NULL
             '</div>' +
             '</div>';
         }
-        var lastKey = monthKey(last[0]);
-        var items = hasRows(detailRows)
-          ? parseSemLeadsDetailRows(detailRows).filter(function (it) { return it.mes === lastKey; })
-          : [];
-        var statusHtml = items.length
-          ? '<div class="imob-sem-status">' +
-            '<div class="ma-label">Status financeiro de quem ficou sem clique de contato</div>' +
-            semLeadsBreakdownList(countBy(items, semLeadsStatusBucket), items.length) +
-            '</div>'
-          : '';
         return '<div class="ma-hero">' +
           '<div class="ma-label">Fechado · ' + niceMonth(last[0]) + '</div>' +
           '<div class="ma-value">' + fmtNum(value) + '</div>' +
           '</div>' +
-          shareHtml + compareHtml + statusHtml;
+          shareHtml + compareHtml;
       }
 
       // imob_mes_atual: current month to date vs the same days of the previous month.
@@ -11775,6 +12230,56 @@ WHERE newdata IS NOT NULL
           '</div>';
       }
 
+      // Side-by-side columns per month. rows: [mes, time_loft, imobiliaria, outros, total].
+      // "Outros" is drawn only when some month has that bucket.
+      function onboardingSeries(rows) {
+        var series = [
+          { label: 'Time Loft', color: COLORS.laranja, col: 1 },
+          { label: 'Imobiliária', color: COLORS.verdeClaro, col: 2 }
+        ];
+        var hasOthers = (rows || []).some(function (r) { return cellNum(r, 3) > 0; });
+        if (hasOthers) series.push({ label: 'Outros', color: '#8A877E', col: 3 });
+        return series;
+      }
+
+      function onboardingChartHtml(rows) {
+        if (!hasRows(rows)) return queryErrorNote();
+        rows = sortMonthRows(rows);
+        var series = onboardingSeries(rows);
+        var maxPx = COL2_PLOT_PX;
+        var vals = [];
+        rows.forEach(function (r) { series.forEach(function (sr) { vals.push(cellNum(r, sr.col)); }); });
+        var scaleMax = niceAxisMax(Math.max.apply(null, vals.concat([1])));
+        var grid = [0, 0.25, 0.5, 0.75, 1].map(function (f) {
+          return '<div class="ts-grid-line' + (f === 0 ? ' base' : '') + '" style="bottom:' + (f * maxPx).toFixed(1) + 'px">' +
+            '<span class="ts-grid-label">' + fmtAxisRound(scaleMax * f) + '</span></div>';
+        }).join('');
+        var cols = rows.map(function (r) {
+          var total = cellNum(r, 4) || (cellNum(r, 1) + cellNum(r, 2) + cellNum(r, 3));
+          var partial = isCurrentCalendarMonth(r[0]);
+          var op = partial ? 0.55 : 1;
+          var tip = series.map(function (sr) {
+            var val = cellNum(r, sr.col);
+            return '<span class="ml-tip-row"><span class="ml-tip-label" style="color:' + sr.color + '">' + sr.label + '</span>: ' +
+              fmtNum(val) + ' (' + pct(val, total) + ')</span>';
+          }).join('') + '<span class="ml-tip-row">Total: ' + fmtNum(total) + '</span>';
+          var bars = series.map(function (sr) {
+            var val = cellNum(r, sr.col);
+            var hpx = Math.max((val / scaleMax) * maxPx, val > 0 ? 3 : 0);
+            return '<div class="gb-bar-wrap"><div class="ts-bar-val gb-val">' + fmtNum(val) + '</div>' +
+              '<div class="ts-bar pvm-hit" style="height:' + hpx.toFixed(1) + 'px;background:' + sr.color + ';opacity:' + op + '" data-month="' +
+              niceMonth(r[0]) + (partial ? ' (parcial)' : '') + '" data-tip="' + encodeURIComponent(tip) + '"></div></div>';
+          }).join('');
+          return '<div class="ts-bar-col"><div class="gb-group">' + bars + '</div></div>';
+        }).join('');
+        var labels = rows.map(function (r) { return '<div class="ts-bar-label">' + niceMonth(r[0]) + '</div>'; }).join('');
+        return '<div class="ts-chart pvm-chart-wrap pvm-tip-light">' +
+          '<div class="ts-plot" style="height:' + (maxPx + 18) + 'px">' + grid + '<div class="ts-bar-row">' + cols + '</div></div>' +
+          '<div class="ts-label-row">' + labels + '</div>' +
+          '<div class="pvm-tooltip"></div>' +
+          '</div>';
+      }
+
       function normalizeTemplateName(raw) {
         return String(raw || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
       }
@@ -12230,14 +12735,12 @@ WHERE newdata IS NOT NULL
         var subtotais = await loadCard('subtotais');
         var tmpl = await loadCard('template');
         var novas = await loadCard('novas_imob');
+        var onboarding = await loadCard('onboarding_mes');
         var status = await loadCard('imob_status_financeiro');
         var semLeadsMes = await loadCard('imob_sem_leads');
-        var semLeadsDetalhe = await loadCard('imob_sem_leads_detalhe');
         var portalCobertura = await loadCard('portal_cobertura');
         var pubImob = await loadCard('imobs_com_publicados');
         var mes = parseMesAtual(await loadCard('imob_mes_atual'));
-        var parouLeads = await loadCard('imob_parou_leads');
-        var novosSemLead = await loadCard('novos_sem_primeiro_lead');
 
         var totalImob = hasRows(subtotais) ? cellNum(subtotais[0], 0) : null;
 
@@ -12280,11 +12783,15 @@ WHERE newdata IS NOT NULL
           imobKpiHtml({
             label: 'Entrantes em ' + (novasYear || 'no ano'),
             value: novasYtd == null ? null : fmtNum(novasYtd),
+            pill: (novasYtd != null && (totalSites || totalImob)) ? pct(novasYtd, totalSites || totalImob) : '',
+            tone: 'neutral',
             sub: (monthRangeLabel(novasYearRows) || '') +
-              (novasYearAvg == null ? '' : ' · média de ' + fmtNum(Math.round(novasYearAvg)) + ' por mês fechado'),
-            metrics: ['novas_imob'],
+              (novasYearAvg == null ? '' : ' · média de ' + fmtNum(Math.round(novasYearAvg)) + ' por mês fechado') +
+              ((totalSites || totalImob) ? ' · da base de sites' : ''),
+            metrics: ['novas_imob', 'template'],
             derived: [
               { label: 'Número', formula: 'soma dos sites criados no ano, incluindo o mês parcial' },
+              { label: '%', formula: 'entrantes do ano ÷ total de sites ativos' },
               { label: 'Média', formula: 'média dos meses fechados do ano' }
             ]
           }),
@@ -12308,6 +12815,18 @@ WHERE newdata IS NOT NULL
           mesAtualStatsHtml(mes, mes ? mes.novas : null) +
           '</div>'
         );
+
+        var onboardingRange = monthRangeLabel(onboarding);
+        var onboardingSeriesList = onboardingSeries(onboarding);
+        var onboardingCard = '<div class="panel-card onboarding-card">' +
+          cardHead('Onboardings concluídos por mês', 'Quem concluiu o onboarding do site' + (onboardingRange ? ' · ' + onboardingRange : ''), ['onboarding_mes'],
+            [
+              { label: 'Quem concluiu', formula: 'primeiro onboarding concluído de cada marca; role user = Time Loft, broker-admin = Imobiliária' },
+              { label: 'Outros', formula: 'role diferente de user e broker-admin, ou vazio; a cor só aparece se algum mês tiver esse caso' },
+              { label: 'Mês atual', formula: 'barra mais clara é o mês ainda aberto' }
+            ]) +
+          (hasRows(onboarding) ? groupedBarsLegendHtml(onboardingSeriesList, true) + onboardingChartHtml(onboarding) + '<div class="footnote">' + lastMonthFootnote(onboarding) + '</div>' : queryErrorNote()) +
+          '</div>';
 
         // 2. A base está ativa?
         var st = hasRows(status) ? status[0] : null;
@@ -12363,6 +12882,40 @@ WHERE newdata IS NOT NULL
           ['imob_status_financeiro', 'imob_mes_atual']
         );
 
+        var csat = await loadCard('csat_mes');
+        var csatChart = hasRows(csat) ? sortMonthRows(csat).map(function (r) {
+          return [r[0], cellNum(r, 2), cellNum(r, 1), cellNum(r, 3)];
+        }) : [];
+        var csatRange = monthRangeLabel(csatChart);
+        var csatLast = csatChart.length ? csatChart[csatChart.length - 1] : null;
+        var csatLastPartial = csatLast && isCurrentCalendarMonth(csatLast[0]);
+        var csatDerived = [
+          { label: 'Nota média', formula: 'média das notas de 0 a 5 respondidas no mês' },
+          { label: 'Respostas', formula: 'quantidade de notas no mês; aparece abaixo do mês e no tooltip' },
+          { label: 'Satisfeitos', formula: 'notas 4 e 5 ÷ respostas do mês' },
+          { label: 'Medidor', formula: 'último mês da série. Faixas: 4,5–5 Excelente · 4–4,4 Bom · 3–3,9 Precisa melhorar · 2–2,9 Ruim · abaixo de 2 Crítico' },
+          { label: 'Mês atual', formula: 'traço pontilhado é o mês ainda aberto' }
+        ];
+        var csatRow = '<div class="row-2col csat-split">' +
+          '<div class="panel-card">' +
+          cardHead('Nota de satisfação por mês', 'Média das notas das imobiliárias (0 a 5)' + (csatRange ? ' · ' + csatRange : ''), ['csat_mes'], csatDerived) +
+          (csatChart.length
+            ? lineChartHtml(csatChart, COLORS.laranja, lastMonthFootnote(csatChart), {
+              compact: { decimals: 1 },
+              showZero: true,
+              labelExtra: function (row) { return fmtNum(cellNum(row, 2)); },
+              tipExtra: function (row) {
+                return '<span class="ml-tip-row">' + fmtNum(cellNum(row, 2)) + ' respostas</span>';
+              }
+            })
+            : queryErrorNote()) +
+          '</div>' +
+          '<div class="panel-card">' +
+          cardHead(csatLast ? niceMonth(csatLast[0]) : 'Último mês', csatLastPartial ? 'Mês em andamento' : 'Último mês analisado', ['csat_mes'], csatDerived) +
+          (csatLast ? csatGaugeHtml(csatLast) : queryErrorNote()) +
+          '</div>' +
+          '</div>';
+
         var semRange = monthRangeLabel(semLeadsMes);
         var semLeadsRow = splitCardsHtml(
           '<div class="panel-card">' +
@@ -12372,16 +12925,15 @@ WHERE newdata IS NOT NULL
               { label: 'Mês atual', formula: 'parcial; o traço pontilhado é o mês ainda aberto' }
             ]) +
           (hasRows(semLeadsMes)
-            ? lineChartHtml(semLeadsMes, COLORS.laranja, lastMonthFootnote(semLeadsMes), { compact: { decimals: 0 }, axisMin: 0, axisMax: 1000, axisStep: 250, maxPx: 128, showZero: true, selectMonth: true, selectedMonth: resolveSemLeadsMonth(semLeadsMes, semLeadsDetalhe) })
+            ? lineChartHtml(semLeadsMes, COLORS.laranja, lastMonthFootnote(semLeadsMes), { compact: { decimals: 0 }, axisMin: 0, axisMax: 1000, axisStep: 250, maxPx: 128, showZero: true })
             : queryErrorNote()) +
           '</div>',
           '<div class="panel-card ungrouped-month-card mes-atual">' +
-          cardHead('Último mês fechado', 'Quem ficou sem clique de contato e em que situação', ['imob_sem_leads', 'imob_sem_leads_detalhe'],
+          cardHead('Último mês fechado', 'Com acesso no site e nenhum clique de contato', ['imob_sem_leads'],
             [
-              { label: 'Número', formula: 'último mês fechado de Imobiliárias sem cliques de contato' },
-              { label: 'Status', formula: 'status_financeiro de quem ficou sem lead; com data_previsao_cancelamento preenchida conta como Cancelamento previsto' }
+              { label: 'Número', formula: 'último mês fechado de Imobiliárias sem cliques de contato' }
             ]) +
-          semLeadsClosedStatsHtml(semLeadsMes, semLeadsDetalhe) +
+          semLeadsClosedStatsHtml(semLeadsMes) +
           '</div>'
         );
 
@@ -12458,14 +13010,13 @@ WHERE newdata IS NOT NULL
 
         var periodNote = imobPeriodNoteText(mes);
         return questionHeadHtml(1, 'A base está crescendo?', periodNote) +
-          growthKpis + novasRow +
+          growthKpis + novasRow + onboardingCard +
           questionHeadHtml(2, 'A base está ativa?') +
-          activationKpis + semLeadsRow + semLeadsDetailCardHtml(semLeadsMes, semLeadsDetalhe) +
-          questionHeadHtml(3, 'Estamos levando a base para onde queremos?', 'Posição de hoje') +
-          directionKpis + directionRow +
-          questionHeadHtml(4, 'Quem precisa de contato?', 'Listas de ação com base nos leads entregues no CRM') +
-          parouLeadsCardHtml(parouLeads) +
-          novosSemLeadCardHtml(novosSemLead);
+          activationKpis + semLeadsRow +
+          questionHeadHtml(3, 'A base está satisfeita?') +
+          csatRow +
+          questionHeadHtml(4, 'Estamos levando a base para onde queremos?', 'Posição de hoje') +
+          directionKpis + directionRow;
       }
 
       function detalhePorSiteStatsHtml(items, daysByMonth) {
@@ -12740,6 +13291,144 @@ WHERE newdata IS NOT NULL
         });
       }
 
+      var CORRETOR_DERIVED = [
+        { label: 'Etapa 1', formula: 'sessões com pageview em /corretor/ (a listagem /corretores não entra)' },
+        { label: 'Etapa 2', formula: 'dessas, pageview em /imovel/ com timestamp posterior ao primeiro pageview do corretor' },
+        { label: 'Etapa 3', formula: 'dessas, evento de contato com timestamp posterior ao pageview do imóvel' },
+        { label: 'Contato', formula: 'nome do evento contém whatsapp, ligar, email, form ou agendar, exceto aberto, iniciado e abandonado' },
+        { label: 'Contato direto', formula: 'contato na própria página do corretor, no mesmo instante ou depois do pageview do corretor' },
+        { label: 'Período', formula: 'parâmetro dias: 7, 30 ou 90. Padrão 90. Partição _PARTITIONTIME sempre filtrada' },
+        { label: 'Imobiliária', formula: 'parâmetro hostname. Vazio = todas, exceto hosts loftpreview.com.br' }
+      ];
+
+      function parseCorretorFunil(rows) {
+        var total = null;
+        var origens = [];
+        var hosts = [];
+        (rows || []).forEach(function (r) {
+          var item = {
+            tipo: String(r[0] || ''),
+            recorte: String(r[1] || ''),
+            sessoes: cellNum(r, 2),
+            imovel: cellNum(r, 3),
+            pctImovel: cellNum(r, 4),
+            contatoImovel: cellNum(r, 5),
+            pctContatoImovel: cellNum(r, 6),
+            pctContatoSobreTotal: cellNum(r, 7),
+            contatoDireto: cellNum(r, 8),
+            contatoTotal: cellNum(r, 9),
+            pctContatoTotal: cellNum(r, 10)
+          };
+          if (item.tipo === 'total') total = item;
+          else if (item.tipo === 'origem') origens.push(item);
+          else if (item.tipo === 'host') hosts.push(item);
+        });
+        origens.sort(function (a, b) { return b.sessoes - a.sessoes; });
+        hosts.sort(function (a, b) { return b.sessoes - a.sessoes; });
+        return { total: total, origens: origens, hosts: hosts };
+      }
+
+      function corretorPeriodLabel(days) {
+        return 'Últimos ' + days + ' dias';
+      }
+
+      function corretorRate(part, total) {
+        if (!total) return '0%';
+        return (part / total * 100).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
+      }
+
+      function corretorFunilBodyHtml(rows, days) {
+        if (!hasRows(rows)) return queryErrorNote();
+        var model = parseCorretorFunil(rows);
+        var total = model.total;
+        if (!total) return queryErrorNote();
+        var period = corretorPeriodLabel(days || 90);
+        var steps = [
+          { label: 'Página do corretor', value: total.sessoes, between: 'início do funil', ofTotal: '100% do total' },
+          { label: 'Chegaram ao imóvel', value: total.imovel, between: fmtRate(total.pctImovel) + ' da etapa anterior', ofTotal: corretorRate(total.imovel, total.sessoes) + ' do total' },
+          { label: 'Contato depois do imóvel', value: total.contatoImovel, between: fmtRate(total.pctContatoImovel) + ' de quem chegou ao imóvel', ofTotal: fmtRate(total.pctContatoSobreTotal) + ' do total' }
+        ];
+        var maxVal = Math.max(total.sessoes, 1);
+        var bars = steps.map(function (step) {
+          var width = Math.max(step.value / maxVal * 100, step.value > 0 ? 18 : 8);
+          return '<div class="cf-step">' +
+            '<div class="cf-bar" style="width:' + width.toFixed(1) + '%">' + fmtNum(step.value) + '</div>' +
+            '<div><div class="cf-name">' + step.label + '</div>' +
+            '<div class="cf-pct">' + step.between + '<br>' + step.ofTotal + '</div></div></div>';
+        }).join('');
+        var funnelCard = '<div class="panel-card">' +
+          cardHead('Funil da página do corretor', period + ' · sessão com pageview em /corretor/', ['corretor_funil'], CORRETOR_DERIVED) +
+          '<div class="cf-funnel">' + bars + '</div>' +
+          '<div class="footnote">A etapa seguinte só conta se o timestamp for posterior. Sites loftpreview.com.br ficam de fora.</div>' +
+          '</div>';
+        var directCard = '<div class="panel-card">' +
+          cardHead('Contato direto na página do corretor', period, ['corretor_funil'], CORRETOR_DERIVED) +
+          '<div class="cf-hero">' + fmtNum(total.contatoDireto) + '</div>' +
+          '<div class="cf-hero-sub">sessões com contato na própria página do corretor<br>' +
+          fmtNum(total.contatoTotal) + ' com algum contato (' + fmtRate(total.pctContatoTotal) + ' das sessões)</div>' +
+          '</div>';
+        function shareTable(items, nameLabel, emptyText) {
+          return actionTableHtml(items, [
+            { label: nameLabel, cell: function (it) { return escapeText(it.recorte); } },
+            { label: 'Sessões', num: true, cell: function (it) { return fmtNum(it.sessoes); } },
+            { label: '% ao imóvel', num: true, cell: function (it) { return fmtRate(it.pctImovel); } },
+            { label: '% contato', num: true, cell: function (it) { return fmtRate(it.pctContatoTotal); } }
+          ], emptyText);
+        }
+        var originCard = '<div class="panel-card">' +
+          cardHead('Por origem', period + ' · referrer da sessão na página do corretor', ['corretor_funil'], CORRETOR_DERIVED) +
+          shareTable(model.origens, 'Origem', 'Nenhuma sessão neste período.') +
+          '</div>';
+        var hostCard = '<div class="panel-card">' +
+          cardHead('Top 20 imobiliárias', period + ' · por hostname', ['corretor_funil'], CORRETOR_DERIVED) +
+          shareTable(model.hosts, 'Imobiliária', 'Nenhuma sessão neste período.') +
+          '</div>';
+        return '<div class="row-2col">' + funnelCard + directCard + '</div>' +
+          '<div class="row-2col even">' + originCard + hostCard + '</div>';
+      }
+
+      function corretorHostOptionsHtml(rows, selected) {
+        var hosts = parseCorretorFunil(rows).hosts;
+        var html = '<option value="">Todas</option>';
+        hosts.forEach(function (h) {
+          html += '<option value="' + escapeAttr(h.recorte) + '"' + (h.recorte === selected ? ' selected' : '') + '>' + escapeText(h.recorte) + '</option>';
+        });
+        return html;
+      }
+
+      function corretorFunilSection(rows) {
+        return questionHeadHtml(5, 'Funil da página do corretor', 'A página /corretor/{id} leva o visitante ao imóvel e ao contato?') +
+          '<div class="cf-filters">' +
+          '<label>Período<select id="corretorPeriod">' +
+          '<option value="7">Últimos 7 dias</option>' +
+          '<option value="30">Últimos 30 dias</option>' +
+          '<option value="90" selected>Últimos 90 dias</option>' +
+          '</select></label>' +
+          '<label>Imobiliária<select id="corretorHost">' + corretorHostOptionsHtml(rows, '') + '</select></label>' +
+          '</div>' +
+          '<div id="corretorFunilBody">' + corretorFunilBodyHtml(rows, 90) + '</div>';
+      }
+
+      async function fetchCorretorFunil(dias, hostname) {
+        var days = String(dias || '90');
+        var host = hostname || '';
+        if (days === '90' && !host) {
+          var cached = await loadCard('corretor_funil');
+          if (cached) return cached;
+        }
+        var token = await ensureGoogleAccessToken(false);
+        var headers = {};
+        if (token) headers.Authorization = 'Bearer ' + token;
+        var qs = '&dias=' + encodeURIComponent(days);
+        if (host) qs += '&hostname=' + encodeURIComponent(host);
+        var resp = await fetch(apiUrl('/api/bigquery?metric=corretor_funil' + qs), { headers: headers });
+        var data = await resp.json();
+        if (!resp.ok) throw new Error((data && data.error) || ('HTTP ' + resp.status));
+        if (!Array.isArray(data.rows)) throw new Error('Resposta inválida da API.');
+        if (days === '90' && !host) await saveCard('corretor_funil', data.rows);
+        return data.rows;
+      }
+
       async function buildTrafegoTab() {
         var pvMes = await loadCard('pageviews_mes');
         var usuariosMes = await loadCard('usuarios_mes');
@@ -12748,6 +13437,7 @@ WHERE newdata IS NOT NULL
         var canais = await loadCard('trafego_canais');
         var mesAtual = parseMesAtual(await loadCard('imob_mes_atual'));
         var saudeMes = await loadCard('saude_base_mes');
+        var corretorFunil = await loadCard('corretor_funil');
         var daysByMonth = daysByMonthFromHealth(saudeMes);
 
         // 1. Estamos trazendo gente?
@@ -12848,14 +13538,15 @@ WHERE newdata IS NOT NULL
           (concRows.length ? lineChartHtml(concRows, COLORS.laranja, lastMonthFootnote(concRows), { compact: { decimals: 1 }, showZero: true }) : queryErrorNote()) +
           '</div>';
 
-        return questionHeadHtml(1, 'Estamos trazendo gente?') +
-          usuarios + audienceRow +
+        return questionHeadHtml(1, 'Estamos trazendo gente?', 'Pageviews e páginas por usuário em destaque') +
+          audienceRow + usuarios +
           questionHeadHtml(2, 'O tráfego chega no imóvel?', 'Clique = intenção de contato no site · vira lead quando chega ao CRM') +
           funnel + detalhePorSiteCardHtml(saudeMes, daysByMonth) + crossRow +
           questionHeadHtml(3, 'Qual canal gera contato?') +
           channels +
           questionHeadHtml(4, 'Por qual botão o contato acontece?') +
-          tipoCard + tipoMonthly + concCard;
+          tipoCard + tipoMonthly + concCard +
+          corretorFunilSection(corretorFunil);
       }
 
       // All lead types as lines on one chart. WhatsApp is ~16x the others, so the axis is non-linear:
@@ -13172,20 +13863,9 @@ WHERE newdata IS NOT NULL
           ]
         },
         {
-          id: 'imob_lead',
-          label: 'Imobiliárias que receberam leads',
-          kind: 'ESTOQUE',
-          higherIsBetter: true,
-          series: 'imob_leads',
-          queries: ['leads_crm_por_imob'],
-          derived: [
-            { label: 'O que analisa', formula: 'Imobiliárias com pelo menos 1 lead entregue no CRM no mês' },
-            { label: 'Trimestre', formula: 'Média mensal dos 3 meses do trimestre' }
-          ]
-        },
-        {
           id: 'leads',
           label: 'Cliques de contato',
+          quarterLabel: 'Oportunidades geradas no trimestre',
           kind: 'FLUXO',
           higherIsBetter: true,
           display: 'total',
@@ -13198,30 +13878,18 @@ WHERE newdata IS NOT NULL
         },
         {
           id: 'conv',
-          label: 'Cliques por 1.000 pageviews',
-          kind: 'TAXA',
-          higherIsBetter: true,
-          rate: 'ratio',
-          num: 'leads',
-          den: 'pageviews',
-          scale: 1000,
-          digits: 1,
-          queries: ['leads_mes', 'pageviews_mes'],
-          derived: [
-            { label: 'O que analisa', formula: 'Quantos cliques de contato o site gera a cada 1.000 páginas vistas' },
-            { label: 'Fórmula', formula: 'soma de cliques de contato ÷ soma de pageviews × 1.000 no período' }
-          ]
-        },
-        {
-          id: 'pv',
-          label: 'Pageviews',
+          label: 'Visitantes que entram em contato',
+          keepLabel: true,
           kind: 'FLUXO',
           higherIsBetter: true,
           display: 'total',
-          series: 'pageviews',
-          queries: ['pageviews_mes'],
+          series: 'visitantes_contato',
+          shareOf: 'visitantes',
+          shareSuffix: 'dos visitantes',
+          queries: ['visitantes_contato'],
           derived: [
-            { label: 'O que analisa', formula: 'Soma de páginas vistas em todos os sites Loft no período' }
+            { label: 'O que analisa', formula: 'Visitantes únicos do mês que tiveram pageview e pelo menos um clique de contato (WhatsApp, formulário, ligar, agendar visita ou e-mail)' },
+            { label: 'Período', formula: 'meses fechados desde jan/2026. No trimestre, soma os visitantes únicos de cada mês' }
           ]
         },
         {
@@ -13265,6 +13933,12 @@ WHERE newdata IS NOT NULL
         }
       ];
       var principalView = { mode: 'quarter', series: {}, days: {}, failed: {} };
+      var currentUserEmail = '';
+      var narrativeEditorEmail = 'gabriel.oliveira@vistasoft.com.br';
+      var narrativeHtml = { entregas: '', atencao: '' };
+      var narrativeSeeds = { entregas: '', atencao: '' };
+      var narrativeEditor = null;
+      var narrativeKey = '';
 
       function monthValueMap(rows, col) {
         var map = {};
@@ -13358,11 +14032,12 @@ WHERE newdata IS NOT NULL
           var raw = sumMonths(months, principalView.series[def.series]);
           if (raw == null || (cov.partial && !cov.observedDays)) return { failed: true };
           var share = null;
+          var base = null;
           if (def.shareOf) {
-            var base = sumMonths(months, principalView.series[def.shareOf]);
+            base = sumMonths(months, principalView.series[def.shareOf]);
             share = base ? raw / base * 100 : null;
           }
-          return { value: raw, partial: cov.partial, share: share };
+          return { value: raw, partial: cov.partial, share: share, base: base };
         }
         if (def.kind === 'TAXA' && def.rate === 'ratio') {
           var num = sumMonths(months, principalView.series[def.num]);
@@ -13414,8 +14089,8 @@ WHERE newdata IS NOT NULL
         });
         var current = points[points.length - 1];
         var previous = points.length > 1 ? points[points.length - 2] : null;
-        var cardTitle = def.label;
-        if (def.kind === 'FLUXO') cardTitle += mode === 'month' ? ' no mês' : ' no trimestre';
+        var cardTitle = (mode !== 'month' && def.quarterLabel) ? def.quarterLabel : def.label;
+        if (def.kind === 'FLUXO' && !def.keepLabel && cardTitle === def.label) cardTitle += mode === 'month' ? ' no mês' : ' no trimestre';
         if (def.kind === 'ESTOQUE' && mode !== 'month') cardTitle += ' (média mensal)';
         var title = pmCardTopHtml(cardTitle, def.queries);
         var sqlBtn = sqlDetailsHtml(def.queries, def.derived, cardTitle);
@@ -13455,7 +14130,10 @@ WHERE newdata IS NOT NULL
         }
         if (current.agg.share != null) {
           var shareSuffix = def.shareSuffix || 'dos leads';
-          sub += '<div class="pm-sub"><strong>' + fmtRate(current.agg.share) + '</strong> ' + shareSuffix + '</div>';
+          var baseTxt = (def.shareOf && current.agg.base != null)
+            ? ' <span class="pm-sub-base">de ' + fmtCompact(current.agg.base) + ' usuários únicos</span>'
+            : '';
+          sub += '<div class="pm-sub"><strong>' + fmtRate(current.agg.share) + '</strong> ' + shareSuffix + baseTxt + '</div>';
         }
 
         var max = Math.max.apply(null, points.map(function (point) {
@@ -13504,6 +14182,114 @@ WHERE newdata IS NOT NULL
           .sort();
         if (keys.length) return keys[keys.length - 1];
         return shiftMonthKey(monthKey(new Date().toISOString().slice(0, 10)), -1);
+      }
+
+      function principalQuarterPeriods() {
+        var anchor = lastClosedPrincipalMonth();
+        var anchorYm = parseYearMonth(anchor);
+        if (anchorYm && anchorYm.month % 3 !== 0) anchor = shiftMonthKey(anchor, -(anchorYm.month % 3));
+        return principalPeriods('quarter', anchor);
+      }
+
+      function principalAggValue(agg) {
+        return (agg && !agg.failed && !agg.pending && agg.value != null && isFinite(agg.value)) ? agg.value : null;
+      }
+
+      function quarterDeltaHtml(rel, higherIsBetter) {
+        var tone = metricTone(rel, 0, { higherIsBetter: higherIsBetter });
+        return '<span class="dash-hero-delta ' + (tone === 'good' ? 'good' : 'bad') + '">' + fmtSigned(rel, '%', 1) + '</span>';
+      }
+
+      // Rule-based text from the Principais Métricas aggregates: last closed quarter vs the one before.
+      function dashSummaryQuarterText() {
+        var periods = principalQuarterPeriods();
+        if (periods.length < 2) return null;
+        var cur = periods[periods.length - 1];
+        var prev = periods[periods.length - 2];
+        var byId = {};
+        PRINCIPAL_METRICS.forEach(function (def) {
+          var now = aggregatePrincipal(def, cur.months);
+          var before = aggregatePrincipal(def, prev.months);
+          var value = principalAggValue(now);
+          var prevValue = principalAggValue(before);
+          var rel = (value != null && prevValue) ? (value - prevValue) / Math.abs(prevValue) * 100 : null;
+          byId[def.id] = { def: def, agg: now, value: value, rel: rel };
+        });
+        function num(id) {
+          var it = byId[id];
+          return it && it.value != null ? '<strong>' + formatPrincipal(it.def, it.value) + '</strong>' : null;
+        }
+        function joinPt(parts) {
+          if (parts.length <= 1) return parts.join('');
+          return parts.slice(0, -1).join(', ') + ' e ' + parts[parts.length - 1];
+        }
+
+        var rows = [];
+
+        var reach = principalView.imobQuarter && principalView.imobQuarter[cur.months[0]];
+        var baseText = '';
+        if (reach && reach.regular > 0) {
+          var missed = reach.regular - reach.regularWithLead;
+          baseText = 'No <strong>' + cur.label + '</strong>, a base regular fechou com <strong>' + fmtNum(reach.regular) + '</strong> imobiliárias';
+          if (num('imob_periodo')) baseText += ' e ganhou ' + num('imob_periodo') + ' novos sites';
+          baseText += '. <strong>' + fmtNum(reach.regularWithLead) + '</strong> receberam leads.';
+          if (missed > 0) {
+            var rest = [];
+            if (reach.regularAccess) rest.push('<strong>' + fmtNum(reach.regularAccess) + '</strong> tiveram acesso e não receberam leads');
+            if (reach.regularSilent) rest.push('<strong>' + fmtNum(reach.regularSilent) + '</strong> não registraram acesso no trimestre');
+            if (rest.length) baseText += ' Das <strong>' + fmtNum(missed) + '</strong> que não receberam, ' + joinPt(rest) + '.';
+          }
+          if (reach.inactive > 0) baseText += ' <strong>' + fmtNum(reach.inactive) + '</strong> em status inativo ficam fora do cálculo.';
+        } else if (num('imob_periodo')) {
+          baseText = 'No <strong>' + cur.label + '</strong>, a base ganhou ' + num('imob_periodo') + ' novos sites.';
+        }
+        if (baseText) rows.push({ kicker: 'Base', tone: 'base', html: baseText });
+
+        var perf = [];
+        if (num('leads')) perf.push('geraram ' + num('leads') + ' oportunidades');
+        if (num('crm')) {
+          var crm = byId.crm;
+          perf.push('entregaram ' + num('crm') + ' leads no CRM' +
+            (crm.rel != null ? ' (' + quarterDeltaHtml(crm.rel, crm.def.higherIsBetter) + ' vs ' + prev.label + ')' : ''));
+        }
+        var perfText = perf.length ? 'Os sites ' + perf.join(' e ') + '.' : '';
+        var conv = byId.conv;
+        if (conv && conv.agg && conv.agg.share != null && isFinite(conv.agg.share)) {
+          perfText += (perfText ? ' ' : '') + 'A cada 100 visitantes, <strong>' + Math.round(conv.agg.share) + '</strong> entram em contato.';
+        }
+        if (perfText) rows.push({ kicker: 'Performance', tone: 'perf', html: perfText });
+
+        var worst = null;
+        var best = null;
+        var gains = [];
+        PRINCIPAL_METRICS.forEach(function (def) {
+          var it = byId[def.id];
+          if (!it || it.rel == null || Math.abs(it.rel) <= 1) return;
+          var score = def.higherIsBetter ? it.rel : -it.rel;
+          if (score < 0 && (!worst || score < worst.score)) worst = { it: it, score: score };
+          if (score > 0 && (!best || score > best.score)) best = { it: it, score: score };
+          if (score >= 10) gains.push({ it: it, score: score });
+        });
+        gains.sort(function (a, b) { return b.score - a.score; });
+        if (!gains.length && best) gains.push(best);
+        function moveTxt(it) {
+          var pct = Math.abs(it.rel).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
+          var tone = metricTone(it.rel, 0, { higherIsBetter: it.def.higherIsBetter }) === 'good' ? 'good' : 'bad';
+          var label = it.def.quarterLabel || it.def.label;
+          return label + ' ' + (it.rel < 0 ? 'caiu' : 'subiu') + ' <span class="dash-hero-delta ' + tone + '">' + pct + '</span>';
+        }
+        if (worst) rows.push({ kicker: 'Ponto de atenção', tone: 'bad', html: moveTxt(worst.it) + ' vs ' + prev.label + '.' });
+        if (gains.length) rows.push({ kicker: 'Destaque positivo', tone: 'good', html: joinPt(gains.map(function (g) { return moveTxt(g.it); })) + ' vs ' + prev.label + '.' });
+
+        if (!rows.length) return null;
+        return {
+          label: cur.label,
+          html: '<div class="dash-hero-story">' + rows.map(function (row) {
+            return '<div class="dash-hero-story-row ' + row.tone + '">' +
+              '<span class="dash-hero-story-kicker">' + row.kicker + '</span>' +
+              '<span class="dash-hero-story-text">' + row.html + '</span></div>';
+          }).join('') + '</div>'
+        };
       }
 
       /* ---- hero: pulse of the last closed month ---- */
@@ -13564,10 +14350,31 @@ WHERE newdata IS NOT NULL
           }).join('');
         }
 
+        function seedList(items) {
+          if (!items.length) return '<p></p>';
+          return '<ul>' + items.map(function (txt) { return '<li>' + txt + '</li>'; }).join('') + '</ul>';
+        }
+
+        narrativeSeeds.entregas = seedList(entregaItems);
+        narrativeSeeds.atencao = seedList(atencaoItems);
+
+        function narrativeBody(key, items) {
+          var custom = sanitizeNarrativeHtml(narrativeHtml[key] || '');
+          if (custom && narrativeHasText(custom)) return '<div class="dash-hero-rich">' + custom + '</div>';
+          return '<div class="dash-hero-text-list">' + makeList(items) + '</div>';
+        }
+
+        function editBtn(key) {
+          if (!isNarrativeEditor()) return '';
+          return '<button type="button" class="dash-hero-edit" data-narrative="' + key + '" title="Editar" aria-label="Editar">' +
+            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">' +
+            '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg></button>';
+        }
+
         var cardMetricas =
           '<div class="dash-hero-card metricas">' +
-          '<div class="dash-hero-card-label metricas">Principais Entregas</div>' +
-          '<div class="dash-hero-text-list">' + makeList(entregaItems) + '</div>' +
+          '<div class="dash-hero-card-label metricas"><span>Principais Entregas</span>' + editBtn('entregas') + '</div>' +
+          narrativeBody('entregas', entregaItems) +
           sqlDetailsHtml(['leads_crm_mes', 'leads_crm_por_imob', 'leads_mes', 'pageviews_mes', 'novas_imob'], [
             { label: 'Período', formula: 'último mês fechado, comparado ao mês anterior' },
             { label: 'Leads', formula: 'contatos do site que chegaram ao CRM da imobiliária' },
@@ -13578,8 +14385,8 @@ WHERE newdata IS NOT NULL
 
         var cardAtencao =
           '<div class="dash-hero-card atencao">' +
-          '<div class="dash-hero-card-label atencao">Pontos de Atenção</div>' +
-          '<div class="dash-hero-text-list">' + makeList(atencaoItems) + '</div>' +
+          '<div class="dash-hero-card-label atencao"><span>Pontos de Atenção</span>' + editBtn('atencao') + '</div>' +
+          narrativeBody('atencao', atencaoItems) +
           sqlDetailsHtml(['leads_crm_mes', 'leads_mes', 'imob_sem_leads', 'template'], [
             { label: 'Quedas', formula: 'aparecem quando o último mês fechado ficou abaixo do mês anterior' },
             { label: 'Sem cliques de contato', formula: 'imobiliárias com acesso no site e nenhum clique de contato no mês' },
@@ -13593,30 +14400,133 @@ WHERE newdata IS NOT NULL
             (cliques != null ? ' e geraram <strong>' + fmtNum(cliques) + ' cliques de contato</strong>' : '') + '. '
           : 'Rode Atualizar tudo para carregar o último mês fechado. ';
         desc += 'Lead é o contato que chegou ao CRM; clique é a intenção de contato no site.';
+        var eyebrow = 'Loft Sites — Último mês fechado';
+        var descHtml = '<p class="dash-hero-desc">' + desc + '</p>';
+        var quarterSummary = dashSummaryQuarterText();
+        if (quarterSummary) {
+          descHtml = quarterSummary.html;
+          eyebrow = 'Loft Sites — ' + quarterSummary.label + ' · último trimestre fechado';
+        }
 
         return '<div class="dash-hero">' +
           '<div class="dash-hero-left">' +
-          '<div class="dash-hero-eyebrow">Loft Sites — Último mês fechado</div>' +
+          '<div class="dash-hero-eyebrow">' + eyebrow + '</div>' +
           '<h2 class="dash-hero-title">Saúde & Performance dos Sites</h2>' +
-          '<p class="dash-hero-desc">' + desc + '</p>' +
+          descHtml +
           '</div>' +
           '<div class="dash-hero-right">' + cardMetricas + cardAtencao + '</div>' +
           '</div>';
       }
 
-      function principalMetasHtml(tmplRows, leadsRows, pubImobRows) {
-        var META_PUB_PCT = 100;
-        var META_LEADS = 270000;
-        var META_ADV_PCT = 80;
+      var META_PUB_PCT = 95;
+      var META_OPORTUNIDADES = 270000;
+      var META_ADV_PCT = 80;
 
-        var totalImob = hasRows(pubImobRows) ? cellNum(pubImobRows[0], 0) : null;
-        var comPub = hasRows(pubImobRows) ? cellNum(pubImobRows[0], 1) : null;
-        var pubPct = (totalImob && comPub != null) ? comPub / totalImob * 100 : null;
-        var pubTone = pubPct == null ? 'neutral' : (pubPct >= META_PUB_PCT ? 'good' : 'bad');
-        var pubTip = pubPct == null
-          ? 'Rode a query para atualizar este indicador.'
-          : 'Como calcula: imobiliárias ATIVO com feature de site (259) que têm pelo menos 1 imóvel publicado (venda ou locação) ÷ o total dessa mesma base.\n\nAgora: ' +
-            fmtNum(comPub) + ' de ' + fmtNum(totalImob) + ' imobiliárias (' + fmtRate(pubPct) + ').\n\nMeta fixa: 100% da base com portfólio no site.\n\nProjeção: este é um estoque (foto atual). Sem série mensal, o fechamento projetado é o recorte de hoje.';
+      function fmtPctDigits(v, digits) {
+        return v.toLocaleString('pt-BR', { minimumFractionDigits: digits, maximumFractionDigits: digits }) + '%';
+      }
+
+      // One status for the three 2026 goal cards.
+      function goalStatus(atual, projecao, meta, temHistorico) {
+        var missing = !temHistorico || atual == null || projecao == null || meta == null
+          || !isFinite(atual) || !isFinite(projecao) || !isFinite(meta);
+        if (missing) {
+          return {
+            label: 'Sem dados',
+            tone: 'neutral',
+            reason: 'Menos de 3 meses fechados de histórico, ou o dado não carregou.'
+          };
+        }
+        if (atual >= meta) return { label: 'Atingida', tone: 'good' };
+        if (Math.max(atual, projecao) >= 0.9 * meta) return { label: 'No ritmo', tone: 'good' };
+        return { label: 'Em risco', tone: 'warn' };
+      }
+
+      function goalRuleTip(status, atual, projecao, meta, fmt) {
+        if (!status || status.label === 'Sem dados') return status ? status.reason : '';
+        var best = Math.max(atual, projecao);
+        var share = meta ? Math.round(best / meta * 100) : 0;
+        return 'Atual ' + fmt(atual) + ' · projeção 31/dez ' + fmt(projecao) + ' · meta ' + fmt(meta) +
+          ' · ' + share + '% da meta → ' + status.label + '\n\nNo ritmo a partir de 90% da meta.';
+      }
+
+      // Full months after the current one, through December 2026. October 2026 → 2 (Nov and Dec).
+      function fullMonthsLeftUntilDecember(today) {
+        today = today || new Date();
+        if (today.getFullYear() > 2026) return 0;
+        if (today.getFullYear() < 2026) return (2026 - today.getFullYear()) * 12 + (11 - today.getMonth());
+        return Math.max(0, 11 - today.getMonth());
+      }
+
+      // Linear fit of the last 3 closed points, extended to December 2026, clamped to 0–100.
+      function projectStockPct(points) {
+        if (!points || points.length < 3) return null;
+        var last3 = points.slice(-3);
+        var n = last3.length;
+        var sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+        last3.forEach(function (p, x) {
+          sumX += x;
+          sumY += p.value;
+          sumXY += x * p.value;
+          sumXX += x * x;
+        });
+        var den = n * sumXX - sumX * sumX;
+        var slope = den ? (n * sumXY - sumX * sumY) / den : 0;
+        var intercept = (sumY - slope * sumX) / n;
+        var ym = parseYearMonth(last3[n - 1].key);
+        if (!ym) return null;
+        var ahead = ym.year > 2026 ? 0 : (ym.year < 2026 ? (2026 - ym.year) * 12 + (12 - ym.month) : (12 - ym.month));
+        var y = intercept + slope * ((n - 1) + ahead);
+        return Math.max(0, Math.min(100, y));
+      }
+
+      function closedQuarterMonths(lastKey) {
+        var ym = parseYearMonth(lastKey);
+        if (!ym) return [];
+        var qEnd = Math.floor((ym.month - 1) / 3) * 3 + 3;
+        var year = ym.year;
+        if (ym.month !== qEnd) {
+          qEnd -= 3;
+          if (qEnd <= 0) { qEnd += 12; year -= 1; }
+        }
+        var start = year + '-' + String(qEnd - 2).padStart(2, '0') + '-01';
+        return [0, 1, 2].map(function (i) { return shiftMonthKey(start, i); });
+      }
+
+      function principalMetasHtml() {
+        var pubRows = principalView.pubMeta || [];
+        var tmplSeries = principalView.tmplMeta || [];
+        var leadsRows = principalView.leadsMes || [];
+
+        function stockPoints(rows, numCol, denCol) {
+          return sortMonthRows(rows || []).map(function (r) {
+            return {
+              key: monthKey(r[0]),
+              atual: cellNum(r, 1) === 1,
+              num: cellNum(r, numCol),
+              den: cellNum(r, denCol),
+              extra: cellNum(r, 4)
+            };
+          }).filter(function (p) { return p.key && p.den > 0; });
+        }
+        function closedPoints(points) {
+          return points.filter(function (p) {
+            return !p.atual && !isCurrentCalendarMonth(p.key) && !isFutureCalendarMonth(p.key);
+          }).map(function (p) {
+            return { key: p.key, value: p.num / p.den * 100 };
+          });
+        }
+
+        var pubPoints = stockPoints(pubRows, 3, 2);
+        var pubNow = null;
+        pubPoints.forEach(function (p) { if (p.atual) pubNow = p; });
+        if (!pubNow && pubPoints.length) pubNow = pubPoints[pubPoints.length - 1];
+        var pubClosed = closedPoints(pubPoints);
+        var pubPct = pubNow ? pubNow.num / pubNow.den * 100 : null;
+        var pubProj = projectStockPct(pubClosed);
+        var pubHistory = pubClosed.length >= 3;
+        var pubStatus = goalStatus(pubPct, pubProj, META_PUB_PCT, pubHistory);
+        var pubExcluded = pubNow ? pubNow.extra : 0;
 
         var today = new Date();
         var qStartMonth = Math.floor(today.getMonth() / 3) * 3 + 1;
@@ -13630,23 +14540,22 @@ WHERE newdata IS NOT NULL
         });
         var qLabel = 'Q' + (Math.floor(today.getMonth() / 3) + 1) + '/' + String(today.getFullYear()).slice(2);
         var prevQLabel = 'Q' + (Math.floor(prevQStart.getMonth() / 3) + 1) + '/' + String(prevQStart.getFullYear()).slice(2);
-        var leadsSeries = sortMonthRows(leadsRows || []).map(function (r) {
-          return { key: monthKey(r[0]), value: parseFloat(r[1]) || 0 };
-        }).filter(function (it) { return it.key; });
         var leadsMap = {};
-        leadsSeries.forEach(function (it) { leadsMap[it.key] = it.value; });
-        var closedLeads = leadsSeries.filter(function (it) {
-          return !isCurrentCalendarMonth(it.key) && !isFutureCalendarMonth(it.key);
+        sortMonthRows(leadsRows).forEach(function (r) {
+          var key = monthKey(r[0]);
+          if (key) leadsMap[key] = parseFloat(r[1]) || 0;
         });
-        var lastClosedVal = closedLeads.length ? closedLeads[closedLeads.length - 1].value : 0;
+        var closedLeadKeys = Object.keys(leadsMap).filter(function (key) {
+          return !isCurrentCalendarMonth(key) && !isFutureCalendarMonth(key);
+        }).sort();
+        var lastClosedVal = closedLeadKeys.length ? leadsMap[closedLeadKeys[closedLeadKeys.length - 1]] : 0;
         var atualLeads = 0;
-        var lastQuarterSeen = false;
+        var quarterSeen = 0;
         prevQMonths.forEach(function (key) {
           if (leadsMap[key] == null) return;
           atualLeads += leadsMap[key];
-          lastQuarterSeen = true;
+          quarterSeen += 1;
         });
-        // Simple pace: closed months as they are, the open month at its daily pace, future months repeat the last closed month.
         var projLeads = 0;
         qMonths.forEach(function (key) {
           if (isFutureCalendarMonth(key)) { projLeads += lastClosedVal; return; }
@@ -13657,100 +14566,110 @@ WHERE newdata IS NOT NULL
           }
           projLeads += leadsMap[key] || 0;
         });
-        var metaLeads = META_LEADS;
-        var leadsOk = lastQuarterSeen && leadsSeries.length > 0;
-        var leadsTone = !leadsOk ? 'neutral' : (projLeads >= metaLeads ? 'good' : 'bad');
-        var leadsPct = metaLeads ? atualLeads / metaLeads * 100 : 0;
-        var leadsTip = !leadsOk
-          ? 'Rode a query para atualizar este indicador.'
-          : 'Medida em cliques de contato (intenção de contato no site), não em leads do CRM, até a definição da meta ser alinhada.\n\n' +
-            prevQLabel + ' (último trimestre fechado): ' + fmtNum(atualLeads) + ' cliques.\n\nProjeção ' + qLabel + ': meses fechados como estão, o mês em andamento no ritmo diário atual e os meses seguintes repetindo o último mês fechado = ' +
-            fmtNum(Math.round(projLeads)) + (projLeads >= metaLeads ? ' · no ritmo da meta.' : ' · abaixo da meta.') +
-            '\n\nMeta: ' + fmtNum(metaLeads) + ' por trimestre.';
+        var leadsOk = quarterSeen === 3 && closedLeadKeys.length >= 3;
+        var leadsStatus = goalStatus(leadsOk ? atualLeads : null, leadsOk ? projLeads : null, META_OPORTUNIDADES, leadsOk);
 
-        var essencial = 0, avancados = 0;
-        (tmplRows || []).forEach(function (r) {
-          var n = parseFloat(r[1]) || 0;
-          if (isEssencialTemplate(r[0])) essencial += n;
-          else avancados += n;
+        var tmplPoints = stockPoints(tmplSeries, 2, 3);
+        var tmplNow = null;
+        tmplPoints.forEach(function (p) { if (p.atual) tmplNow = p; });
+        if (!tmplNow && tmplPoints.length) tmplNow = tmplPoints[tmplPoints.length - 1];
+        var tmplClosedPts = tmplPoints.filter(function (p) {
+          return !p.atual && !isCurrentCalendarMonth(p.key) && !isFutureCalendarMonth(p.key);
         });
-        var totalTmpl = essencial + avancados;
-        var advPct = totalTmpl ? (avancados / totalTmpl * 100) : 0;
-        var tmplOk = hasRows(tmplRows) && totalTmpl > 0;
-        var tmplTone = !tmplOk ? 'neutral' : (advPct >= META_ADV_PCT ? 'good' : 'bad');
+        var tmplClosed = closedPoints(tmplPoints);
+        var advPct = tmplNow ? tmplNow.num / tmplNow.den * 100 : null;
+        var advProj = projectStockPct(tmplClosed);
+        var advHistory = tmplClosed.length >= 3;
+        var advStatus = goalStatus(advPct, advProj, META_ADV_PCT, advHistory);
+        var unknownN = tmplNow ? tmplNow.extra : 0;
+        var monthsLeft = fullMonthsLeftUntilDecember(new Date());
+        var paceNeeded = (tmplNow && monthsLeft) ? (META_ADV_PCT / 100 * tmplNow.den - tmplNow.num) / monthsLeft : null;
+        var paceDeltas = [];
+        tmplClosedPts.slice(-4).forEach(function (p, i, arr) {
+          if (i === 0) return;
+          paceDeltas.push(p.num - arr[i - 1].num);
+        });
+        var paceNow = paceDeltas.length >= 3
+          ? paceDeltas.slice(-3).reduce(function (s, n) { return s + n; }, 0) / 3
+          : null;
+
+        function dash(v, fmt) { return v == null || !isFinite(v) ? '—' : fmt(v); }
 
         return '<div class="pm-metas-section-head">' +
           '<div class="pm-metas-section-title">Metas 2026</div>' +
           '</div>' +
           '<div class="kpi-row cols-3 pm-metas-row">' +
           paceMeterCardHtml({
-            label: '100% com Imóveis Publicados',
-            tip: pubTip,
-            failed: pubPct == null,
-            metrics: ['imobs_com_publicados'],
+            label: 'Sites com imóveis publicados',
+            tip: 'Imobiliárias regulares, com site criado há 30 dias ou mais, que têm ao menos um imóvel publicado.',
+            failed: !pubRows,
+            metrics: ['publicados_meta_mes'],
             derived: [
-              { label: 'Atual', formula: 'imobiliárias ATIVO + feature 259 com (venda + locação) > 0 ÷ total da mesma base' },
-              { label: 'Meta', formula: '100% — valor fixo da meta 2026' },
-              { label: 'Projeção', formula: 'igual ao atual: indicador de estoque, sem série mensal' }
+              { label: 'Denominador', formula: 'imobiliárias ATIVO + feature 259, situação Regular, com site criado há 30 dias ou mais' },
+              { label: 'Exclusões', formula: 'bloqueadas e inadimplentes ficam fora; site com menos de 30 dias também' },
+              { label: 'Numerador', formula: 'dessas, as que têm (venda + locação) > 0' },
+              { label: 'Meta', formula: META_PUB_PCT + '% — constante META_PUB_PCT' },
+              { label: 'Projeção', formula: 'reta dos últimos 3 meses fechados até 31/12/2026, limitada a 0–100%. Portfólio e status Regular são a foto de hoje; o mês só muda quem já tinha site' }
             ],
-            tone: pubTone,
-            pill: pubTone === 'good' ? 'No ritmo' : 'Em risco',
-            cols: pubPct == null ? [] : [
-              { label: 'Atual', value: fmtRate(pubPct) },
-              { label: 'Projeção', value: fmtRate(pubPct) },
+            tone: pubStatus.tone,
+            pill: pubStatus.label,
+            pillTip: goalRuleTip(pubStatus, pubPct, pubProj, META_PUB_PCT, fmtRate),
+            cols: [
+              { label: 'Atual', value: dash(pubPct, fmtRate) },
+              { label: 'Projeção 31/dez', value: dash(pubProj, fmtRate) },
               { label: 'Meta', value: fmtRate(META_PUB_PCT) }
             ],
             current: pubPct || 0,
             max: META_PUB_PCT,
-            footLeft: pubPct == null ? '' : '<strong>' + fmtRate(pubPct) + '</strong> da meta',
-            footRight: pubPct == null ? '' : fmtNum(comPub) + ' de ' + fmtNum(totalImob) + ' imobiliárias'
+            footLeft: pubNow ? '<strong>' + fmtNum(pubNow.num) + '</strong> de ' + fmtNum(pubNow.den) + ' imobiliárias regulares · ' + fmtNum(pubExcluded) + ' bloqueadas/inadimplentes fora do cálculo' : ''
           }) +
           paceMeterCardHtml({
             label: 'Mais Oportunidades (cliques de contato)',
-            tip: leadsTip,
-            failed: !leadsOk,
+            tip: 'Cliques de contato no trimestre. A projeção fecha o trimestre em andamento: mês aberto no ritmo diário e meses seguintes iguais ao último mês fechado.',
+            failed: !leadsRows,
             metrics: ['leads_mes'],
             derived: [
-              { label: 'Unidade', formula: 'cliques de contato no site (não leads do CRM) até alinhar a definição da meta' },
+              { label: 'Unidade', formula: 'cliques de contato no site (WhatsApp, ligar, e-mail, agendar visita e formulários), não leads do CRM' },
               { label: 'Atual', formula: 'soma dos cliques de contato no último trimestre fechado' },
-              { label: 'Projeção', formula: 'meses fechados + mês em andamento no ritmo diário + meses seguintes iguais ao último mês fechado' },
+              { label: 'Projeção', formula: 'meses fechados do trimestre em andamento + mês aberto no ritmo diário + meses seguintes iguais ao último mês fechado' },
               { label: 'Meta', formula: '270 mil cliques de contato no trimestre' }
             ],
-            tone: leadsTone,
-            pill: leadsTone === 'good' ? 'No ritmo' : 'Em risco',
-            cols: !leadsOk ? [] : [
-              { label: prevQLabel, value: fmtNum(atualLeads) },
-              { label: 'Projeção ' + qLabel, value: fmtNum(Math.round(projLeads)) },
-              { label: 'Meta', value: fmtNum(metaLeads) }
+            tone: leadsStatus.tone,
+            pill: leadsStatus.label,
+            pillTip: goalRuleTip(leadsStatus, atualLeads, Math.round(projLeads), META_OPORTUNIDADES, fmtNum),
+            cols: [
+              { label: 'Atual', value: dash(leadsOk ? atualLeads : null, fmtNum) },
+              { label: 'Projeção 31/dez', value: dash(leadsOk ? projLeads : null, function (v) { return fmtNum(Math.round(v)); }) },
+              { label: 'Meta', value: fmtNum(META_OPORTUNIDADES) }
             ],
             current: atualLeads,
-            max: metaLeads,
-            footLeft: !leadsOk ? '' : '<strong>' + fmtRate(leadsPct) + '</strong> da meta',
-            footRight: !leadsOk ? '' : prevQLabel + ' · meta ' + fmtNum(metaLeads) + ' cliques'
+            max: META_OPORTUNIDADES,
+            footLeft: leadsOk ? prevQLabel + ' fechado · projeção ' + qLabel : ''
           }) +
           paceMeterCardHtml({
-            label: 'Mínimo de 80% no Avançado',
-            tip: tmplOk
-              ? 'Como calcula: sites em Avançado 1, 2 ou 3 (Desconhecido conta como Avançado 3) ÷ total de sites com template.\n\nAgora: ' +
-                fmtNum(avancados) + ' de ' + fmtNum(totalTmpl) + ' (' + fmtRate(advPct) + ').\nMeta fixa: 80% da base em avançados.'
-              : 'Rode a query para atualizar este indicador.',
-            failed: !tmplOk,
-            metrics: ['template'],
+            label: 'Sites em template Avançado',
+            tip: 'Sites em Avançado ÷ sites com template conhecido. Desconhecido fica de fora dos dois lados.',
+            failed: !tmplSeries,
+            metrics: ['template_meta_mes'],
             derived: [
-              { label: 'Atual', formula: 'sites em Avançado 1+2+3 ÷ total de sites com template' },
-              { label: 'Meta', formula: '80% — valor fixo da meta 2026' }
+              { label: 'Atual', formula: 'Avançado ÷ sites com template conhecido. Desconhecido sai do numerador e do denominador' },
+              { label: 'Meta', formula: META_ADV_PCT + '% — constante META_ADV_PCT' },
+              { label: 'Projeção', formula: 'reta dos últimos 3 meses fechados até 31/12/2026, limitada a 0–100%. O template é o de hoje; o mês conta sites já criados até o fim daquele mês' },
+              { label: 'Ritmo necessário', formula: '(meta% × total − avançados atuais) ÷ meses cheios que faltam até dez/2026' },
+              { label: 'Ritmo atual', formula: 'média da variação de sites em Avançado nos últimos 3 meses fechados' }
             ],
-            tone: tmplTone,
-            pill: tmplTone === 'good' ? 'No ritmo' : 'Em risco',
-            cols: !tmplOk ? [] : [
-              { label: 'Atual', value: fmtRate(advPct) },
-              { label: 'Projeção', value: fmtRate(advPct) },
+            tone: advStatus.tone,
+            pill: advStatus.label,
+            pillTip: goalRuleTip(advStatus, advPct, advProj, META_ADV_PCT, fmtRate),
+            cols: [
+              { label: 'Atual', value: dash(advPct, fmtRate) },
+              { label: 'Projeção 31/dez', value: dash(advProj, fmtRate) },
               { label: 'Meta', value: fmtRate(META_ADV_PCT) }
             ],
-            current: advPct,
+            current: advPct || 0,
             max: META_ADV_PCT,
-            footLeft: !tmplOk ? '' : '<strong>' + fmtRate(Math.min(advPct / META_ADV_PCT * 100, 100)) + '</strong> da meta',
-            footRight: !tmplOk ? '' : fmtNum(avancados) + ' de ' + fmtNum(totalTmpl) + ' sites'
+            note: (paceNeeded == null && paceNow == null) ? '' : 'Precisa de ' + (paceNeeded == null ? '—' : paceNeeded.toLocaleString('pt-BR', { maximumFractionDigits: 0 })) + '/mês · ritmo atual ' + (paceNow == null ? '—' : paceNow.toLocaleString('pt-BR', { maximumFractionDigits: 1 })) + '/mês',
+            footLeft: tmplNow ? '<strong>' + fmtNum(tmplNow.num) + '</strong> de ' + fmtNum(tmplNow.den) + ' sites · ' + fmtNum(unknownN) + ' com template desconhecido fora do cálculo' : ''
           }) +
           '</div>';
       }
@@ -13765,7 +14684,7 @@ WHERE newdata IS NOT NULL
           return principalCardHtml(def, periods, principalView.mode);
         });
         return dashSummaryHtml() +
-          principalMetasHtml(principalView.tmpl, principalView.leadsMes, principalView.pubImob) +
+          principalMetasHtml() +
           '<div class="pm-metas-section-head" style="margin-top: 26px;">' +
           '<div class="pm-metas-section-title">Principais Métricas</div>' +
           '</div>' +
@@ -13782,6 +14701,7 @@ WHERE newdata IS NOT NULL
         var crmRows = await loadCard('leads_crm_mes');
         var porImobRows = await loadCard('leads_crm_por_imob');
         var leadsRows = await loadCard('leads_mes');
+        var contatoRows = await loadCard('visitantes_contato');
         var pvRows = await loadCard('pageviews_mes');
         var dayRows = await loadCard('saude_conversao');
         var novasImobRows = await loadCard('novas_imob');
@@ -13789,17 +14709,36 @@ WHERE newdata IS NOT NULL
         var semLeadsRows = await loadCard('imob_sem_leads');
         var tmplRows = await loadCard('template');
         var pubImobRows = await loadCard('imobs_com_publicados');
+        var pubMetaRows = await loadCard('publicados_meta_mes');
+        var tmplMetaRows = await loadCard('template_meta_mes');
+        var reachRows = await loadCard('imob_clique_trimestre');
+        principalView.imobQuarter = {};
+        (reachRows || []).forEach(function (r) {
+          var key = monthKey(r[0]);
+          if (key) {
+            principalView.imobQuarter[key] = {
+              base: cellNum(r, 1),
+              regular: cellNum(r, 2),
+              regularWithLead: cellNum(r, 3),
+              regularAccess: cellNum(r, 4),
+              regularSilent: cellNum(r, 5),
+              inactive: cellNum(r, 6)
+            };
+          }
+        });
         principalView.tmpl = tmplRows;
         principalView.leadsMes = leadsRows;
         principalView.pubImob = pubImobRows;
+        principalView.pubMeta = pubMetaRows;
+        principalView.tmplMeta = tmplMetaRows;
 
         var leadsMap = monthValueMap(leadsRows, 1);
         var crossMap = {};
         (viewsRows || []).forEach(function (r) {
-          if (r[1] === 'CrossSell' || (r[1] && String(r[1]).toLowerCase().indexOf('cross') !== -1)) {
+          if (r[1] && String(r[1]).toLowerCase().indexOf('cross') !== -1) {
             var key = String(r[0] || '');
             if (key.length === 7) key += '-01';
-            crossMap[key] = parseFloat(r[2]) || 0;
+            crossMap[key] = (crossMap[key] || 0) + (parseFloat(r[2]) || 0);
           }
         });
 
@@ -13808,6 +14747,8 @@ WHERE newdata IS NOT NULL
           imob_leads: monthValueMap(porImobRows, 1),
           imob_media: monthValueMap(porImobRows, 3),
           leads: leadsMap,
+          visitantes_contato: monthValueMap(contatoRows, 2),
+          visitantes: monthValueMap(contatoRows, 1),
           pageviews: monthValueMap(pvRows, 1),
           imob_periodo: monthValueMap(novasImobRows, 1),
           cross: crossMap,
@@ -13818,6 +14759,8 @@ WHERE newdata IS NOT NULL
           crm: !hasRows(crmRows),
           imob_leads: !hasRows(porImobRows),
           leads: !hasRows(leadsRows),
+          visitantes_contato: !hasRows(contatoRows),
+          visitantes: !hasRows(contatoRows),
           pageviews: !hasRows(pvRows),
           imob_periodo: !hasRows(novasImobRows),
           cross: !hasRows(viewsRows),
@@ -13937,6 +14880,188 @@ WHERE newdata IS NOT NULL
         });
       }
 
+      function isNarrativeEditor() {
+        return currentUserEmail && currentUserEmail === String(narrativeEditorEmail || '').toLowerCase();
+      }
+
+      function narrativeHasText(html) {
+        return String(html || '').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim().length > 0;
+      }
+
+      function sanitizeNarrativeHtml(html) {
+        var allowed = { P: 1, BR: 1, STRONG: 1, EM: 1, B: 1, I: 1, UL: 1, OL: 1, LI: 1, H2: 1, H3: 1, A: 1 };
+        var doc = new DOMParser().parseFromString(String(html || ''), 'text/html');
+        function clean(node) {
+          Array.prototype.slice.call(node.childNodes).forEach(function (child) {
+            if (child.nodeType === 3) return;
+            if (child.nodeType !== 1) {
+              node.removeChild(child);
+              return;
+            }
+            if (!allowed[child.tagName]) {
+              while (child.firstChild) node.insertBefore(child.firstChild, child);
+              node.removeChild(child);
+              return;
+            }
+            var href = child.tagName === 'A' ? child.getAttribute('href') : '';
+            Array.prototype.slice.call(child.attributes).forEach(function (attr) {
+              child.removeAttribute(attr.name);
+            });
+            if (child.tagName === 'A' && /^https?:\/\//i.test(href || '')) {
+              child.setAttribute('href', href);
+              child.setAttribute('rel', 'noopener noreferrer');
+              child.setAttribute('target', '_blank');
+            }
+            clean(child);
+          });
+        }
+        clean(doc.body);
+        return doc.body.innerHTML;
+      }
+
+      async function loadNarratives() {
+        try {
+          var resp = await fetch(apiUrl('/api/narratives'));
+          if (!resp.ok) return;
+          var data = await resp.json();
+          narrativeHtml.entregas = data && data.entregas ? String(data.entregas) : '';
+          narrativeHtml.atencao = data && data.atencao ? String(data.atencao) : '';
+          if (data && data.editor) narrativeEditorEmail = String(data.editor).toLowerCase();
+        } catch (e) {}
+      }
+
+      function ensureTipTap() {
+        if (window.LoftTipTap && window.LoftTipTap.Editor) return Promise.resolve(window.LoftTipTap);
+        return new Promise(function (resolve, reject) {
+          var timer = setTimeout(function () { reject(new Error('editor')); }, 12000);
+          window.addEventListener('loft-tiptap-ready', function () {
+            clearTimeout(timer);
+            resolve(window.LoftTipTap);
+          }, { once: true });
+        });
+      }
+
+      function syncNarrativeToolbar() {
+        if (!narrativeEditor) return;
+        document.querySelectorAll('[data-narr-cmd]').forEach(function (btn) {
+          var cmd = btn.getAttribute('data-narr-cmd');
+          var on = false;
+          if (cmd === 'bold') on = narrativeEditor.isActive('bold');
+          else if (cmd === 'italic') on = narrativeEditor.isActive('italic');
+          else if (cmd === 'bullet') on = narrativeEditor.isActive('bulletList');
+          else if (cmd === 'ordered') on = narrativeEditor.isActive('orderedList');
+          btn.classList.toggle('is-active', on);
+        });
+      }
+
+      function destroyNarrativeEditor() {
+        if (narrativeEditor) {
+          narrativeEditor.destroy();
+          narrativeEditor = null;
+        }
+      }
+
+      async function openNarrativeModal(key) {
+        if (!isNarrativeEditor()) return;
+        if (key !== 'entregas' && key !== 'atencao') return;
+        narrativeKey = key;
+        var overlay = document.getElementById('narrativeOverlay');
+        var title = document.getElementById('narrativeModalTitle');
+        var mount = document.getElementById('narrativeEditor');
+        var err = document.getElementById('narrativeError');
+        if (!overlay || !mount) return;
+        if (title) title.textContent = key === 'entregas' ? 'Principais Entregas' : 'Pontos de Atenção';
+        if (err) err.textContent = '';
+        mount.innerHTML = '<div class="empty-note">Carregando editor...</div>';
+        overlay.classList.add('active');
+        document.body.classList.add('query-modal-open');
+        destroyNarrativeEditor();
+        try {
+          var lib = await ensureTipTap();
+          var StarterKit = lib.StarterKit.default || lib.StarterKit;
+          var saved = narrativeHtml[key] || '';
+          var content = narrativeHasText(saved) ? saved : (narrativeSeeds[key] || '<p></p>');
+          mount.innerHTML = '';
+          narrativeEditor = new lib.Editor({
+            element: mount,
+            extensions: [StarterKit],
+            content: content,
+            onUpdate: syncNarrativeToolbar,
+            onSelectionUpdate: syncNarrativeToolbar
+          });
+          syncNarrativeToolbar();
+        } catch (e) {
+          mount.innerHTML = '<div class="empty-note">Não foi possível carregar o editor.</div>';
+        }
+      }
+
+      function closeNarrativeModal() {
+        var overlay = document.getElementById('narrativeOverlay');
+        if (overlay) overlay.classList.remove('active');
+        document.body.classList.remove('query-modal-open');
+        destroyNarrativeEditor();
+        narrativeKey = '';
+      }
+
+      async function saveNarrative() {
+        if (!narrativeEditor || !narrativeKey || !isNarrativeEditor()) return;
+        var btn = document.getElementById('narrativeSave');
+        var err = document.getElementById('narrativeError');
+        var html = narrativeHasText(narrativeEditor.getText()) ? narrativeEditor.getHTML() : '';
+        if (btn) btn.disabled = true;
+        if (err) err.textContent = '';
+        try {
+          var resp = await fetch(apiUrl('/api/narratives'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key: narrativeKey, html: html, email: currentUserEmail })
+          });
+          var data = await resp.json();
+          if (!resp.ok) throw new Error((data && data.error) || 'Não foi possível salvar.');
+          narrativeHtml.entregas = data.entregas || '';
+          narrativeHtml.atencao = data.atencao || '';
+          closeNarrativeModal();
+          await renderTab('metricas');
+        } catch (e) {
+          if (err) err.textContent = e.message || 'Não foi possível salvar.';
+        } finally {
+          if (btn) btn.disabled = false;
+        }
+      }
+
+      function runNarrativeCommand(cmd) {
+        if (!narrativeEditor) return;
+        var chain = narrativeEditor.chain().focus();
+        if (cmd === 'bold') chain.toggleBold().run();
+        else if (cmd === 'italic') chain.toggleItalic().run();
+        else if (cmd === 'bullet') chain.toggleBulletList().run();
+        else if (cmd === 'ordered') chain.toggleOrderedList().run();
+        syncNarrativeToolbar();
+      }
+
+      function wireNarrativeModal() {
+        var overlay = document.getElementById('narrativeOverlay');
+        var closeBtn = document.getElementById('narrativeModalClose');
+        var cancelBtn = document.getElementById('narrativeCancel');
+        var saveBtn = document.getElementById('narrativeSave');
+        if (closeBtn) closeBtn.addEventListener('click', closeNarrativeModal);
+        if (cancelBtn) cancelBtn.addEventListener('click', closeNarrativeModal);
+        if (saveBtn) saveBtn.addEventListener('click', saveNarrative);
+        if (overlay) {
+          overlay.addEventListener('click', function (e) {
+            if (e.target === overlay) closeNarrativeModal();
+          });
+        }
+        document.querySelectorAll('[data-narr-cmd]').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            runNarrativeCommand(btn.getAttribute('data-narr-cmd'));
+          });
+        });
+        document.addEventListener('keydown', function (e) {
+          if (e.key === 'Escape' && overlay && overlay.classList.contains('active')) closeNarrativeModal();
+        });
+      }
+
       function wireCard(scope) {
         scope.querySelectorAll('[data-pm-mode]').forEach(function (btn) {
           btn.addEventListener('click', function () {
@@ -13959,6 +15084,46 @@ WHERE newdata IS NOT NULL
             runLiveUpdate(ids);
           });
         });
+
+        scope.querySelectorAll('[data-narrative]').forEach(function (btn) {
+          btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            openNarrativeModal(btn.getAttribute('data-narrative'));
+          });
+        });
+
+        var corretorPeriod = scope.querySelector('#corretorPeriod');
+        var corretorHost = scope.querySelector('#corretorHost');
+        if (corretorPeriod && corretorHost && !corretorPeriod.dataset.wired) {
+          corretorPeriod.dataset.wired = '1';
+          var corretorLoading = false;
+          corretorPeriod.addEventListener('change', reloadCorretorFunil);
+          corretorHost.addEventListener('change', reloadCorretorFunil);
+          async function reloadCorretorFunil() {
+            if (corretorLoading) return;
+            var body = document.getElementById('corretorFunilBody');
+            if (!body) return;
+            corretorLoading = true;
+            corretorPeriod.disabled = true;
+            corretorHost.disabled = true;
+            body.innerHTML = '<div class="empty-note">Carregando o funil…</div>';
+            try {
+              var rows = await fetchCorretorFunil(corretorPeriod.value, corretorHost.value);
+              if (!corretorHost.value) {
+                var selected = corretorHost.value;
+                corretorHost.innerHTML = corretorHostOptionsHtml(rows, selected);
+              }
+              body.innerHTML = corretorFunilBodyHtml(rows, corretorPeriod.value);
+              wireCard(body);
+            } catch (e) {
+              body.innerHTML = queryErrorNote();
+            }
+            corretorPeriod.disabled = false;
+            corretorHost.disabled = false;
+            corretorLoading = false;
+          }
+        }
 
         scope.querySelectorAll('.sql-open-btn').forEach(function (btn) {
           btn.addEventListener('click', function () {
@@ -14471,6 +15636,9 @@ WHERE newdata IS NOT NULL
               return String(email).toLowerCase();
             });
           }
+          if (data && data.narrativeEditorEmail) {
+            narrativeEditorEmail = String(data.narrativeEditorEmail).toLowerCase();
+          }
         } catch (e) { }
       }
 
@@ -14635,6 +15803,11 @@ WHERE newdata IS NOT NULL
           var asOfRes = await window.storage.get('query_as_of_v1', false);
           if (asOfRes && asOfRes.value) setQueryAsOf(asOfRes.value);
         } catch (e) { }
+        try {
+          var userRes = await window.storage.get('auth_user_v1', false);
+          currentUserEmail = userRes && userRes.value ? String(userRes.value).toLowerCase() : '';
+        } catch (e) {}
+        await loadNarratives();
         await hydrateFromApi();
         await renderAll();
       }
@@ -14697,6 +15870,7 @@ WHERE newdata IS NOT NULL
       });
 
       wireQueryModal();
+      wireNarrativeModal();
       loadAppConfig().then(checkAuth);
     })();
   </script>

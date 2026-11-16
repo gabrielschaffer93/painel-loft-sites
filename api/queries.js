@@ -216,6 +216,53 @@ SELECT
     COUNT(*) AS total_imobiliarias,
     COUNTIF(qtd_venda_ver_web + qtd_locacao_ver_web > 0) AS com_imoveis_publicados
 FROM imobiliarias_sites`,
+  // Meta 2026 card: published-listing share by month.
+  // Listings and Regular are today's snapshot; the month only changes who already had a site 30+ days earlier.
+  // There is no monthly membership or portfolio history. The row flagged atual uses today as the cutoff.
+  publicados_meta_mes: `WITH pontos AS (
+    SELECT mes, DATE_SUB(DATE_ADD(mes, INTERVAL 1 MONTH), INTERVAL 1 DAY) AS fim, 0 AS atual
+    FROM UNNEST(GENERATE_DATE_ARRAY('2026-01-01', DATE_SUB(DATE_TRUNC(CURRENT_DATE(), MONTH), INTERVAL 1 MONTH), INTERVAL 1 MONTH)) AS mes
+    UNION ALL
+    SELECT DATE_TRUNC(CURRENT_DATE(), MONTH), CURRENT_DATE(), 1
+),
+base AS (
+    SELECT
+        clientes.id_cliente,
+        ANY_VALUE(clientes.status_financeiro) AS status_financeiro,
+        ANY_VALUE(IFNULL(clientes.imoveis_ativos_venda_ver_web, 0) + IFNULL(clientes.imoveis_ativos_locacao_ver_web, 0)) AS imoveis
+    FROM \`loft-dl-marketplace.silver_product_vista.clientes\` AS clientes
+    INNER JOIN \`loft-dl-marketplace.silver_product_vista.clientes_features\` AS features
+        ON clientes.id_cliente = features.id_cliente
+    WHERE clientes.status = 'ATIVO'
+        AND features.id_feature = 259
+        AND features.status = 'ATIVO'
+    GROUP BY clientes.id_cliente
+),
+site AS (
+    SELECT id_cliente, MIN(data_criacao) AS criado
+    FROM \`loft-dl-marketplace.gold_loft_sites.sites_imobiliarias\`
+    GROUP BY id_cliente
+),
+marcada AS (
+    SELECT
+        b.id_cliente,
+        b.imoveis,
+        s.criado,
+        b.status_financeiro = 'Regular' AS regular,
+        REGEXP_CONTAINS(NORMALIZE_AND_CASEFOLD(IFNULL(b.status_financeiro, '')), r'bloquead|inadimplen') AS fora
+    FROM base b
+    LEFT JOIN site s ON s.id_cliente = b.id_cliente
+)
+SELECT
+    p.mes,
+    p.atual,
+    COUNTIF(m.regular AND m.criado IS NOT NULL AND m.criado <= DATE_SUB(p.fim, INTERVAL 30 DAY)) AS denominador,
+    COUNTIF(m.regular AND m.criado IS NOT NULL AND m.criado <= DATE_SUB(p.fim, INTERVAL 30 DAY) AND m.imoveis > 0) AS numerador,
+    COUNTIF(m.fora) AS bloqueadas_inadimplentes
+FROM pontos p
+CROSS JOIN marcada m
+GROUP BY p.mes, p.atual
+ORDER BY p.mes`,
   // Card: Situação financeira — same base as Total de Imobiliárias (ATIVO + feature 259).
   imob_status_financeiro: `WITH base AS (
     ${BASE_SITES_STATUS}
@@ -350,6 +397,39 @@ FROM \`loft-dl-marketplace.gold_loft_sites.sites_imobiliarias\`
 WHERE status_site IN ('ATIVO') AND (template IS NOT NULL AND template != '')
 GROUP BY template
 ORDER BY total_imobs_por_template DESC`,
+  // Meta 2026 card: advanced-template share by month.
+  // Template is today's value. A past month counts sites already created by that month end.
+  // Unknown templates stay in their own column so the card can drop them from both sides.
+  template_meta_mes: `WITH pontos AS (
+    SELECT mes, DATE_SUB(DATE_ADD(mes, INTERVAL 1 MONTH), INTERVAL 1 DAY) AS fim, 0 AS atual
+    FROM UNNEST(GENERATE_DATE_ARRAY('2026-01-01', DATE_SUB(DATE_TRUNC(CURRENT_DATE(), MONTH), INTERVAL 1 MONTH), INTERVAL 1 MONTH)) AS mes
+    UNION ALL
+    SELECT DATE_TRUNC(CURRENT_DATE(), MONTH), CURRENT_DATE(), 1
+),
+sites AS (
+    SELECT
+        id_site_cms,
+        data_criacao,
+        CASE
+            WHEN REGEXP_CONTAINS(LOWER(IFNULL(template, '')), r'avan') THEN 'avancado'
+            WHEN REGEXP_CONTAINS(LOWER(IFNULL(template, '')), r'essenc') THEN 'essencial'
+            ELSE 'desconhecido'
+        END AS grupo
+    FROM \`loft-dl-marketplace.gold_loft_sites.sites_imobiliarias\`
+    WHERE status_site = 'ATIVO'
+        AND template IS NOT NULL
+        AND template != ''
+)
+SELECT
+    p.mes,
+    p.atual,
+    COUNTIF((p.atual = 1 OR s.data_criacao <= p.fim) AND s.grupo = 'avancado') AS avancados,
+    COUNTIF((p.atual = 1 OR s.data_criacao <= p.fim) AND s.grupo != 'desconhecido') AS conhecidos,
+    COUNTIF((p.atual = 1 OR s.data_criacao <= p.fim) AND s.grupo = 'desconhecido') AS desconhecidos
+FROM pontos p
+CROSS JOIN sites s
+GROUP BY p.mes, p.atual
+ORDER BY p.mes`,
 
   // Card: Templates que mais convertem
   // "Sem template" is excluded: those clients are no longer in the portfolio.
@@ -432,7 +512,7 @@ WHERE nome_evento = 'pageview' AND data_ref BETWEEN "2026-01-01" AND CURRENT_DAT
   views_composicao: `SELECT
   FORMAT_DATE('%Y-%m', data_ref) AS mes,
   CASE
-    WHEN nome_evento LIKE '%Cross%' THEN nome_evento
+    WHEN REGEXP_CONTAINS(LOWER(nome_evento), r'cross') THEN nome_evento
     WHEN tipo_pagina = 'busca'      THEN 'pageview_busca'
     WHEN tipo_pagina = 'detalhe'    THEN 'pageview_detalhe'
   END AS metrica,
@@ -441,7 +521,7 @@ FROM \`loft-dl-marketplace.gold_loft_sites.sites_eventos_gtm\`
 WHERE data_ref >= '2026-01-01'
   AND data_ref <  '2027-01-01'
   AND (
-    nome_evento LIKE '%Cross%'
+    REGEXP_CONTAINS(LOWER(nome_evento), r'cross')
     OR (nome_evento = 'pageview' AND tipo_pagina IN ('busca', 'detalhe'))
   )
 GROUP BY mes, metrica
@@ -518,6 +598,108 @@ WHERE tipo_evento IN ('contato whatsapp', 'form lead imóvel', 'ligar', 'agendar
   AND data_ref BETWEEN '2026-01-01' AND CURRENT_DATE()
 GROUP BY mes_referencia
 ORDER BY mes_referencia`,
+
+  // Chart: Visitantes que entram em contato — unique visitors who also clicked a contact event.
+  visitantes_contato: `WITH usuario_mes AS (
+    SELECT
+        DATE_TRUNC(DATE(data_ref), MONTH) AS mes,
+        id_usuario,
+        LOGICAL_OR(nome_evento = 'pageview') AS visitou,
+        LOGICAL_OR(tipo_evento IN ('contato whatsapp', 'form lead imóvel', 'ligar',
+                                   'agendar visita', 'email', 'form de contato')) AS clicou
+    FROM \`loft-dl-marketplace.gold_loft_sites.sites_eventos_gtm\`
+    WHERE DATE(data_ref) >= '2026-01-01'
+      AND DATE(data_ref) < DATE_TRUNC(CURRENT_DATE(), MONTH)
+      AND id_usuario IS NOT NULL
+    GROUP BY mes, id_usuario
+)
+SELECT
+    mes,
+    COUNTIF(visitou)            AS usuarios_unicos,
+    COUNTIF(visitou AND clicou) AS usuarios_que_clicaram
+FROM usuario_mes
+GROUP BY mes
+ORDER BY mes`,
+  // Meta 2026 card: same monthly unique visitors and contact clicks as visitantes_contato.
+  conv_usuarios_mes: `WITH usuario_mes AS (
+    SELECT
+        DATE_TRUNC(DATE(data_ref), MONTH) AS mes,
+        id_usuario,
+        LOGICAL_OR(nome_evento = 'pageview') AS visitou,
+        LOGICAL_OR(tipo_evento IN (${LEAD_EVENTOS})) AS clicou
+    FROM \`loft-dl-marketplace.gold_loft_sites.sites_eventos_gtm\`
+    WHERE DATE(data_ref) >= '2026-01-01'
+      AND DATE(data_ref) < DATE_TRUNC(CURRENT_DATE(), MONTH)
+      AND id_usuario IS NOT NULL
+    GROUP BY mes, id_usuario
+)
+SELECT
+    mes,
+    COUNTIF(visitou)            AS usuarios_unicos,
+    COUNTIF(visitou AND clicou) AS usuarios_que_clicaram
+FROM usuario_mes
+GROUP BY mes
+ORDER BY mes`,
+
+  // Hero text: quarter reach for the Regular base only, same membership as the published-listings goal.
+  // Everyone who is not Regular today is one inactive total. Status is today's snapshot.
+  imob_clique_trimestre: `WITH trimestres AS (
+    SELECT inicio, DATE_SUB(DATE_ADD(inicio, INTERVAL 1 QUARTER), INTERVAL 1 DAY) AS fim
+    FROM UNNEST(GENERATE_DATE_ARRAY('2026-01-01', DATE_SUB(DATE_TRUNC(CURRENT_DATE(), QUARTER), INTERVAL 1 QUARTER), INTERVAL 1 QUARTER)) AS inicio
+),
+base AS (
+    SELECT
+        clientes.id_cliente,
+        MIN(DATE(features.data_ativacao_feature)) AS ativacao,
+        ANY_VALUE(clientes.status_financeiro) AS status_financeiro,
+        ANY_VALUE(DATE(clientes.data_previsao_cancelamento)) AS previsao
+    FROM \`loft-dl-marketplace.silver_product_vista.clientes\` AS clientes
+    INNER JOIN \`loft-dl-marketplace.silver_product_vista.clientes_features\` AS features
+        ON clientes.id_cliente = features.id_cliente
+    WHERE clientes.status = 'ATIVO'
+        AND features.id_feature = 259
+        AND features.status = 'ATIVO'
+    GROUP BY clientes.id_cliente
+),
+eventos AS (
+    SELECT
+        DATE_TRUNC(data_ref, QUARTER) AS trimestre,
+        id_cliente,
+        LOGICAL_OR(tipo_evento IN (${LEAD_EVENTOS})) AS recebeu,
+        LOGICAL_OR(nome_evento = 'pageview') AS acessou
+    FROM \`loft-dl-marketplace.gold_loft_sites.sites_eventos_gtm\`
+    WHERE data_ref >= '2026-01-01'
+        AND data_ref < DATE_TRUNC(CURRENT_DATE(), QUARTER)
+        AND id_cliente IS NOT NULL
+    GROUP BY trimestre, id_cliente
+),
+marcada AS (
+    SELECT
+        t.inicio,
+        CASE
+            WHEN e.recebeu THEN 'recebeu'
+            WHEN e.acessou THEN 'acesso_sem_lead'
+            ELSE 'sem_acesso'
+        END AS grupo,
+        CASE
+            WHEN b.status_financeiro = 'Regular' THEN 'regular'
+            ELSE 'inativo'
+        END AS situacao
+    FROM trimestres t
+    INNER JOIN base b ON b.ativacao <= t.fim
+    LEFT JOIN eventos e ON e.trimestre = t.inicio AND e.id_cliente = b.id_cliente
+)
+SELECT
+    inicio AS trimestre,
+    COUNT(*) AS imobiliarias_base,
+    COUNTIF(situacao = 'regular') AS regulares,
+    COUNTIF(situacao = 'regular' AND grupo = 'recebeu') AS regulares_com_lead,
+    COUNTIF(situacao = 'regular' AND grupo = 'acesso_sem_lead') AS regulares_com_acesso,
+    COUNTIF(situacao = 'regular' AND grupo = 'sem_acesso') AS regulares_sem_acesso,
+    COUNTIF(situacao = 'inativo') AS inativos
+FROM marcada
+GROUP BY inicio
+ORDER BY inicio`,
 
   // Chart: Leads por tipo — one row per month so the card can show the current month.
   leads_tipo: `SELECT DATE_TRUNC(data_ref, MONTH) AS mes_referencia, nome_evento, COUNT(tipo_evento) AS total_eventos
@@ -1018,6 +1200,142 @@ INNER JOIN bases_site AS b USING (id_database)
 GROUP BY v.id_database, nome_cliente
 ORDER BY quantidade_imoveis DESC
 LIMIT 20`,
+
+  // Chart: first completed site onboarding per brand, split by who finished it.
+  onboarding_mes: `WITH primeira AS (
+    SELECT brandid, role, TIMESTAMP(createdat) AS concluido_em
+    FROM \`loft-dl-marketplace.bronze_gtm_capital.cms_user_activity\`
+    WHERE eventcategory = 'onboarding'
+      AND eventtype = 'onboarding_complete'
+    QUALIFY ROW_NUMBER() OVER (PARTITION BY brandid ORDER BY TIMESTAMP(createdat)) = 1
+)
+SELECT
+    DATE_TRUNC(DATE(concluido_em, 'America/Sao_Paulo'), MONTH) AS mes,
+    COUNTIF(role = 'user')         AS time_loft,
+    COUNTIF(role = 'broker-admin') AS imobiliaria,
+    COUNTIF(role NOT IN ('user', 'broker-admin') OR role IS NULL) AS outros,
+    COUNT(*) AS total
+FROM primeira
+WHERE DATE(concluido_em, 'America/Sao_Paulo') >= '2026-01-01'
+GROUP BY mes
+ORDER BY mes`,
+
+  // Chart: monthly satisfaction score (0–5) from agency CSAT responses.
+  csat_mes: `SELECT
+    DATE_TRUNC(DATE(TIMESTAMP(createdat), 'America/Sao_Paulo'), MONTH) AS mes,
+    COUNT(*) AS respostas,
+    ROUND(AVG(SAFE_CAST(rating AS INT64)), 2) AS nota_media,
+    COUNTIF(SAFE_CAST(rating AS INT64) >= 4) AS satisfeitos
+FROM \`loft-dl-marketplace.bronze_gtm_capital.csat_response\`
+WHERE SAFE_CAST(rating AS INT64) BETWEEN 0 AND 5
+  AND DATE(TIMESTAMP(createdat), 'America/Sao_Paulo') BETWEEN '2026-01-01' AND CURRENT_DATE('America/Sao_Paulo')
+GROUP BY mes
+ORDER BY mes`,
+
+  // Broker-page funnel. @dias is 7, 30 or 90. @hostname is empty or one site.
+  // Both are BigQuery parameters. The API never concatenates them into the SQL.
+  corretor_funil: `WITH eventos AS (
+    SELECT
+        CAST(session_id AS STRING) AS sessao,
+        hostname,
+        pathname,
+        LOWER(name) AS evento,
+        timestamp AS ts,
+        IFNULL(NULLIF(referrer_source, ''), '(direto)') AS origem
+    FROM \`loft-dl-marketplace.bronze_gtm_capital.gtm_eventos_analytics\`
+    WHERE DATE(_PARTITIONTIME) BETWEEN DATE_SUB(CURRENT_DATE('America/Sao_Paulo'), INTERVAL CAST(@dias AS INT64) DAY) AND CURRENT_DATE('America/Sao_Paulo')
+        AND hostname NOT LIKE '%loftpreview.com.br'
+        AND (@hostname = '' OR LOWER(hostname) = @hostname)
+),
+contatos AS (
+    SELECT * FROM eventos
+    WHERE REGEXP_CONTAINS(evento, r'whatsapp|ligar|email|form|agendar')
+        AND NOT REGEXP_CONTAINS(evento, r'aberto|iniciado|abandonado')
+),
+etapa1_corretor AS (
+    SELECT sessao, ANY_VALUE(hostname) AS hostname, ANY_VALUE(origem) AS origem, MIN(ts) AS ts_corretor
+    FROM eventos
+    WHERE evento = 'pageview' AND STARTS_WITH(pathname, '/corretor/')
+    GROUP BY sessao
+),
+etapa2_imovel AS (
+    SELECT c.sessao, MIN(e.ts) AS ts_imovel
+    FROM etapa1_corretor c
+    JOIN eventos e
+        ON e.sessao = c.sessao AND e.evento = 'pageview'
+        AND STARTS_WITH(e.pathname, '/imovel/') AND e.ts > c.ts_corretor
+    GROUP BY c.sessao
+),
+etapa3_contato AS (
+    SELECT DISTINCT i.sessao
+    FROM etapa2_imovel i
+    JOIN contatos k ON k.sessao = i.sessao AND k.ts > i.ts_imovel
+),
+contato_direto AS (
+    SELECT DISTINCT c.sessao
+    FROM etapa1_corretor c
+    JOIN contatos k
+        ON k.sessao = c.sessao AND k.ts >= c.ts_corretor
+        AND STARTS_WITH(k.pathname, '/corretor/')
+),
+funil AS (
+    SELECT
+        c.sessao,
+        LOWER(c.hostname) AS hostname,
+        c.origem,
+        i.sessao IS NOT NULL AS foi_ao_imovel,
+        k.sessao IS NOT NULL AS contato_via_imovel,
+        d.sessao IS NOT NULL AS contato_direto
+    FROM etapa1_corretor c
+    LEFT JOIN etapa2_imovel i USING (sessao)
+    LEFT JOIN etapa3_contato k USING (sessao)
+    LEFT JOIN contato_direto d USING (sessao)
+),
+medidas AS (
+    SELECT
+        COUNT(*) AS sessoes_corretor,
+        COUNTIF(foi_ao_imovel) AS foram_ao_imovel,
+        ROUND(SAFE_DIVIDE(COUNTIF(foi_ao_imovel), COUNT(*)) * 100, 1) AS pct_imovel,
+        COUNTIF(contato_via_imovel) AS contato_via_imovel,
+        ROUND(SAFE_DIVIDE(COUNTIF(contato_via_imovel), COUNTIF(foi_ao_imovel)) * 100, 1) AS pct_contato_sobre_imovel,
+        ROUND(SAFE_DIVIDE(COUNTIF(contato_via_imovel), COUNT(*)) * 100, 1) AS pct_contato_sobre_total,
+        COUNTIF(contato_direto) AS contato_direto_na_pagina,
+        COUNTIF(contato_via_imovel OR contato_direto) AS contato_total,
+        ROUND(SAFE_DIVIDE(COUNTIF(contato_via_imovel OR contato_direto), COUNT(*)) * 100, 1) AS pct_contato_total
+    FROM funil
+)
+SELECT 'total' AS tipo, 'TOTAL' AS recorte, * FROM medidas
+UNION ALL
+SELECT
+    'origem',
+    origem,
+    COUNT(*),
+    COUNTIF(foi_ao_imovel),
+    ROUND(SAFE_DIVIDE(COUNTIF(foi_ao_imovel), COUNT(*)) * 100, 1),
+    COUNTIF(contato_via_imovel),
+    ROUND(SAFE_DIVIDE(COUNTIF(contato_via_imovel), COUNTIF(foi_ao_imovel)) * 100, 1),
+    ROUND(SAFE_DIVIDE(COUNTIF(contato_via_imovel), COUNT(*)) * 100, 1),
+    COUNTIF(contato_direto),
+    COUNTIF(contato_via_imovel OR contato_direto),
+    ROUND(SAFE_DIVIDE(COUNTIF(contato_via_imovel OR contato_direto), COUNT(*)) * 100, 1)
+FROM funil
+GROUP BY origem
+UNION ALL
+SELECT
+    'host',
+    hostname,
+    COUNT(*),
+    COUNTIF(foi_ao_imovel),
+    ROUND(SAFE_DIVIDE(COUNTIF(foi_ao_imovel), COUNT(*)) * 100, 1),
+    COUNTIF(contato_via_imovel),
+    ROUND(SAFE_DIVIDE(COUNTIF(contato_via_imovel), COUNTIF(foi_ao_imovel)) * 100, 1),
+    ROUND(SAFE_DIVIDE(COUNTIF(contato_via_imovel), COUNT(*)) * 100, 1),
+    COUNTIF(contato_direto),
+    COUNTIF(contato_via_imovel OR contato_direto),
+    ROUND(SAFE_DIVIDE(COUNTIF(contato_via_imovel OR contato_direto), COUNT(*)) * 100, 1)
+FROM funil
+GROUP BY hostname
+QUALIFY ROW_NUMBER() OVER (ORDER BY COUNT(*) DESC) <= 20`,
 
   // ---------------------------------------------------------------------------
   // Queries without a panel card

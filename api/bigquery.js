@@ -47,6 +47,32 @@ function splitSqlStatements(sql) {
   return statements;
 }
 
+const CORRETOR_FUNIL_PERIODS = [7, 30, 90];
+
+// Period and hostname stay BigQuery parameters. Empty hostname means every site.
+function corretorFunilRequest(req) {
+  const query = (req && req.query) || {};
+  const rawDays = query.dias == null || query.dias === '' ? '90' : String(query.dias);
+  const dias = Number(rawDays);
+  if (!CORRETOR_FUNIL_PERIODS.includes(dias)) {
+    const err = new Error('Invalid period. Use 7, 30 or 90 days.');
+    err.statusCode = 400;
+    throw err;
+  }
+  const hostname = String(query.hostname || '').trim().toLowerCase();
+  if (hostname && (!/^[a-z0-9.-]+$/.test(hostname) || hostname.length > 253)) {
+    const err = new Error('Invalid hostname.');
+    err.statusCode = 400;
+    throw err;
+  }
+  const isDefault = dias === 90 && !hostname;
+  return {
+    cacheId: isDefault ? 'corretor_funil' : 'corretor_funil|v1|' + dias + '|' + hostname,
+    params: { dias: dias, hostname: hostname },
+    types: { dias: 'INT64', hostname: 'STRING' },
+  };
+}
+
 function scalar(value) {
   if (value == null) return '';
   if (typeof value === 'object' && value.value !== undefined) return String(value.value);
@@ -196,7 +222,9 @@ module.exports = async (req, res) => {
     const forceRefresh =
       String((req.query && req.query.refresh) || '') === '1';
 
-    const cached = await cache.get(metric);
+    const funil = metric === 'corretor_funil' ? corretorFunilRequest(req) : null;
+    const cacheId = funil ? funil.cacheId : metric;
+    const cached = await cache.get(cacheId);
 
     if (!forceRefresh && cached) {
       res.status(200).json({
@@ -238,10 +266,15 @@ module.exports = async (req, res) => {
       }
       rows = mergeViewsComposicao(parts);
     } else {
-      const [job] = await bigquery.createQueryJob({
+      const jobConfig = {
         query: sql,
         location: 'US',
-      });
+      };
+      if (funil) {
+        jobConfig.params = funil.params;
+        jobConfig.types = funil.types;
+      }
+      const [job] = await bigquery.createQueryJob(jobConfig);
       const [rawRows] = await job.getQueryResults();
       rows = toRows(rawRows);
     }
@@ -249,7 +282,7 @@ module.exports = async (req, res) => {
     /**
      * Salva o resultado no cache.
      */
-    await cache.set(metric, rows);
+    await cache.set(cacheId, rows);
 
     res.status(200).json({
       metric,

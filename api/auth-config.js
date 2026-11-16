@@ -12,5 +12,6 @@ module.exports = async (req, res) => {
   res.status(200).json({
     googleClientId: config.googleClientId || '',
     allowedEmails: config.allowedEmails,
+    narrativeEditorEmail: config.narrativeEditorEmail || '',
   });
 };

@@ -4,6 +4,7 @@ const path = require('path');
 
 const bigqueryHandler = require('./api/bigquery');
 const authConfigHandler = require('./api/auth-config');
+const narrativesHandler = require('./api/narratives');
 
 function loadEnvFile(filePath) {
   if (!fs.existsSync(filePath)) return;
@@ -109,6 +110,11 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname === '/api/auth-config') {
       await authConfigHandler(req, res);
+      return;
+    }
+    if (url.pathname === '/api/narratives') {
+      req.body = req.method === 'POST' ? await readBody(req) : {};
+      await narrativesHandler(req, res);
       return;
     }
     serveStatic(req, res, url.pathname);
